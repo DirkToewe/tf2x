@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8"> 
+    <title>Hand-Written Digit Classifier (Trained in Tensorflow)</title>
+    <script id="nd.js" type="text/javascript">
+      {ND}
+    </script>
+  </head>
+  <body>
+    <script type="text/javascript">
+    'use strict'; {{
+      const header = document.createElement('div');
+      header.innerHTML = 'Draw a number:'
+      document.body.appendChild(header);
+
+      let classifier = new Blob(
+        [`
+          ${{ document.getElementById('nd.js').innerHTML }}
+
+          let model = {MODEL}
+          model = new model(true)
+
+          self.onmessage = msg => {{
+            let images = msg.data
+            images = new nd.Array( [1,28,28,4], Float32Array.from(images, x => x / 765.0 ) )
+            images = images
+              .slice('...',[0,3,])
+              .reduce(-1, 'float32', (x,y) => x+y )
+              .reshape(1,28,28,1)
+//            console.log( images.reshape(1,28,28).toString() )
+            const prediction = model({{ 'in/images:0': images }})
+            postMessage(prediction.data);
+          }};
+        `],
+        {{ type: 'application/javascript' }}
+      );
+
+      const
+        canvas = document.createElement('canvas'),
+        status = document.createElement('div')
+      canvas.width = 28;
+      canvas.height= 28;
+      canvas.style.width ='280px';
+      canvas.style.height='280px';
+      document.body.appendChild(canvas)
+      document.body.appendChild(status)
+
+      const ctx = canvas.getContext('2d');
+
+      const progressBars = Array.from({{ length: 10 }}, (_,i) => {{
+        const
+          progressBar  = document.createElement('progress'),
+          progressLabel= document.createElement('div'),
+          div = document.createElement('div')
+        progressLabel.style.display = 'inline'
+        progressBar.value=0
+        progressBar.max=1.0
+        div.innerHTML = i
+        div.appendChild(progressBar)
+        div.appendChild(progressLabel)
+        document.body.appendChild(div)
+        return [progressBar,progressLabel]
+      }})
+
+      let
+        classifierRunning = false,
+        classifierNext = null
+      classifier = new Worker( URL.createObjectURL(classifier) );
+      classifier.onmessage = msg => {{
+        if( classifierNext != null )
+        {{
+          classifier.postMessage(classifierNext)
+          classifierNext = null
+        }}
+        else {{
+          status.innerHTML = ''
+          classifierRunning = false
+          msg.data.forEach( (progress,i) => {{
+            progressBars[i][0].value = progress
+            progressBars[i][1].innerHTML = `${{(progress*100).toFixed(1)}}%`
+          }})
+        }}
+      }}
+
+      function reclassify()
+      {{
+        let data = ctx.getImageData(0,0, canvas.width, canvas.height).data
+        progressBars.forEach( bar_label => {{ bar_label[0].value=0; bar_label[1].innerHTML='' }} )
+        if( ! classifierRunning ) {{
+          status.innerHTML = 'Calculating...'
+          classifier.postMessage(data)
+          classifierRunning = true
+        }}
+        else classifierNext = data
+      }}
+
+      function mousePos( event )
+      {{
+        const bounds = canvas.getBoundingClientRect();
+        return [
+          (event.clientX - bounds.left) / 10,
+          (event.clientY - bounds.top ) / 10
+        ];
+      }}
+
+
+      canvas.addEventListener(
+        'mousedown',
+        e => {{
+          if( e.buttons == 1 ) {{
+            ctx.beginPath();
+            ctx.strokeStyle = 'white';
+            ctx.moveTo( ...mousePos(e) );
+          }}
+        }}
+      );
+      canvas.addEventListener(
+        'mousemove',
+        e => {{
+          if( e.buttons == 1 ) {{
+            ctx.lineTo( ...mousePos(e) );
+            ctx.stroke();
+            reclassify();
+          }}
+        }}
+      );
+
+      const clear = document.createElement('button')
+      clear.innerHTML = 'Clear'
+      clear.onclick = e => {{
+        ctx.fillStyle = 'black'
+        ctx.fillRect(0,0, canvas.width, canvas.height)
+        progressBars.forEach( bar_label => {{ bar_label[0].value=0; bar_label[1].innerHTML='' }} )
+      }}
+      clear.onclick()
+      document.body.appendChild(clear)
+    }}
+    </script>
+  </body>
+</html>

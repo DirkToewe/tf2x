@@ -1,0 +1,327 @@
+class {MODEL_NAME} extends Function
+{{
+  /** A JavaScript representation of a Tensorflow computation, generated using the TF2X library.
+    *
+    * Only a very small subset of Tensorflow's operations are supported. Control flow is specifically
+    * not part of said subset.
+    *
+    * The variables, constants and operations are stored in the vars, consts and ops properties.
+    *
+    * To run the computation, the instances of this class can be called as function. As an input,
+    * a feed_dict containing the placeholders' values is required.
+    */
+  constructor( cached )
+  {{
+    /** Returns the the selected, strided slice from an nd.Array as a new nd.Array.
+      *
+      * Parameters
+      * ----------
+      * ndarray: nd.Array[...]
+      *   The nd.Array from which the strided slices are taken.
+      *
+      * begin: nd.Array[N] dtype=int32
+      *   The starting indices of the slices along the axes/dimensions. Only used when the respective begin_mask bit is set.
+      *
+      * end: nd.Array[N] dtype=int32
+      *   The starting indices of the slices along the axes/dimensions. Only used when the respective end_mask bit is set.
+      *
+      * strides: nd.Array[N] dtype=int32
+      *   The strides/steps of the slices along the axes/dimensions.
+      *
+      * begin_mask: int32
+      *   If begin_mask.bits[i] is set, begin[i] is ignored as start index for the (i+1)-th slice.
+      *
+      * end_mask: int32
+      *   If end_mask.bits[i] is set, end[i] is ignored as (exclusive) end index for the (i+1)-th slice.
+      *
+      * ellipsis_mask: int32
+      *   If ellipsis_mask.bits[i] is set, an ellipsis is inserted as the (i+1)-th slice index.
+      *   The ellipsis is replaced by the missing slice indices, all of which are chosen take
+      *   all elements along the respective axes.
+      *
+      * new_axis_mask: int32
+      *   If new_axis_mask.bits[i] is set, a new axis inserted at the respective position in the result.
+      *
+      * shrink_axis_mask: int32
+      *   If shrink_axis_mask.bits[i] is set, a single slice is taken along the respective dimension
+      *   and the axis/dimension is omitted from the result.
+      *
+      * Returns
+      * -------
+      * sliced: nd.Array
+      *   The selected slices of ndarray as a new nd.Array.
+      */
+    // see: https://www.tensorflow.org/api_docs/python/tf/strided_slice
+    function _stridedSlice(
+       ndarray, begin, end, strides,
+       begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask
+    ) {{
+      if(   begin.ndim != 1 ) throw new Error(  'begin must have ndim=1.')
+      if(     end.ndim != 1 ) throw new Error(    'end must have ndim=1.')
+      if( strides.ndim != 1 ) throw new Error('strides must have ndim=1.')
+      if( !  begin.dtype.startsWith('int') ) throw new Error(  'begin must have an integer data type.')
+      if( !    end.dtype.startsWith('int') ) throw new Error(    'end must have an integer data type.')
+      if( !strides.dtype.startsWith('int') ) throw new Error('strides must have an integer data type.')
+      begin  = begin  .data
+      end    = end    .data
+      strides= strides.data
+      if(  end.length !=  begin.length
+        || end.length !=strides.length ) throw new Error('begin, end and strides must have the same length.')
+      const slices = [];
+      for( let i=begin.length; --i >= 0; )
+             if( 1 &    ellipsis_mask >>> i ) slices.unshift('...')
+        else if( 1 &    new_axis_mask >>> i ) slices.unshift('new')
+        else if( 1 & shrink_axis_mask >>> i )
+        {{
+          if( begin[i]+1 != end[i]) throw new Error('Assertion failed.')
+          if( strides[i] != 1     ) throw new Error('Assertion failed.')
+          slices.unshift(begin[i])
+        }} else {{
+          const slice = [,,strides[i]]
+          if( ! (1 & begin_mask >>> i) ) slice[0] = begin[i]
+          if( ! (1 &   end_mask >>> i) ) slice[1] =   end[i]
+          slices.unshift(slice)
+        }}
+      return ndarray.slice(...slices)
+    }}
+
+    /** Computes softmax activations along the last axis/dimension.
+      *
+      * Parameters
+      * ----------
+      * logits: nd.Array dtype=float
+      * dtype: String
+      *   The output data type.
+      *
+      * Returns
+      * -------
+      * softmax: nd.Array dtype=float
+      */
+    // see: https://www.tensorflow.org/api_docs/python/tf/nn/softmax
+    function _softmax( logits, dtype )
+    {{
+      if( ! dtype.startsWith('float') ) throw new Error('Data type must be float32 or float64.')
+      const max = logits.reduce(-1, dtype,   Math.max   ).slice('...','new'); logits=nd.Array.from([logits,max], dtype, (x,y) => Math.exp(x-y) )
+      const sum = logits.reduce(-1, dtype, (x,y) => x+y ).slice('...','new'); return nd.Array.from([logits,sum], dtype, (x,y) => x/y)
+    }}
+
+    /** Returns a reshaped view of an nd.Array.
+      *
+      * Parameters
+      * ----------
+      * ndarray: nd.Array[...]
+      *   The nd.Array with its old shape.
+      * shape: nd.Array[:] dtype=int
+      *   The shape of the new nd.Array (view). May contain a single -1, in which
+      *   case the corresponding dimension's size is inferred.
+      *
+      * Returns
+      * -------
+      * reshaped_view: nd.Array[...]
+      */
+    function _reshape( ndarray, shape )
+    {{
+      if( 1 !== shape.ndim )
+        throw new Error('Shape array must be one dimensional.')
+      if( ! shape.dtype.startsWith('int') )
+        throw new Error('Shape array must have an integer data type.')
+      return ndarray.reshape(...shape.data)
+    }}
+
+    /** Computes the convolution of a batch of 2d-images, supporting multiple
+      * (color) channels per pixel.
+      *
+      * Parameters
+      * ----------
+      * images: nd.Array[n_batch,:,:,n_channels_in] dtype=float
+      * filter: nd.Array[filter_w, filter_h, n_channels_in, n_channels_out]
+      *   The convolution kernel, i.e. the weights used to calculate the weighted
+      *   sum of a pixel and its neighbors.
+      * strides: [int,int,int,int]
+      *   The strides along the individual axes. strides[1] Only strides[0] and
+      *   strides[3] of 1 are supported so far.
+      *
+      * Returns
+      * -------
+      * convoluted: nd.Array[n_batch,:,:,n_channels_out]
+      *   The convoluted batch of images, where:
+      *
+      *   convoluted[n,i,j,l] = sum[di,dj,k]{{
+      *       filter[di, dj, k, l]
+      *     * images[
+      *         n,
+      *         i*strides[1] + di - round(0.5*filter_w),
+      *         j*strides[2] + dj - round(0.5*filter_h),
+      *         k
+      *       ]
+      *   }}
+      */
+    // see: https://www.tensorflow.org/api_docs/python/tf/nn/conv2d
+    function _conv2d( images, filter, strides, padding, data_format )
+    {{
+      if( strides.length != 4 ) throw new Error('Assertion failed.')
+      if( strides[0] != 1 ) throw new Error('strides[0] != 1 not supported.')
+      if( strides[3] != 1 ) throw new Error('strides[3] != 1 not supported.')
+      if(    padding !== 'VALID'
+          && padding !== 'SAME' ) throw new Error('Unknown padding. Supported formats: {{SAME, VALID}}.')
+      if(    data_format !== 'NHWC'
+          && data_format !== 'NCHW' ) throw new Error("Unkown data_format '"+data_format+"'. Supported formats: {{NHWC, NCHW}}.")
+      if( filter.ndim != 4 ) throw new Error('Filter must have ndim=4.')
+      if( data_format !== 'NHWC' )
+        throw new Error('Only NHWC supported as data_format so far.')
+
+      const
+        oldShape = images.shape,
+        newShape = Int32Array.from(oldShape),
+        ndim = newShape.length,
+        [fh,fw,cIn,cOut] = filter.shape
+
+      let
+        diOff = - (fh-1 >>> 1),
+        djOff = - (fw-1 >>> 1)
+
+      if( cIn != oldShape[ndim-1] )
+        throw Error('Last dim of images must match filter.shape[2].')
+      
+      if( padding === 'VALID' )
+      {{
+        diOff = 0; newShape[ndim-3] -= fh-1
+        djOff = 0; newShape[ndim-2] -= fw-1
+      }}
+      newShape[ndim-3] = 1 + Math.trunc( (newShape[ndim-3] - 1) / strides[1] )
+      newShape[ndim-2] = 1 + Math.trunc( (newShape[ndim-2] - 1) / strides[2] )
+      newShape[ndim-1]  = cOut
+
+      return nd.tabulate(
+        newShape, 'float32'/*<- FIXME*/,
+        (...indices) => {{
+          const
+            i = indices[ndim-3] * strides[1],
+            j = indices[ndim-2] * strides[2],
+            k = indices[ndim-1];
+          let result = 0.0;
+          for( let di=0; di < fh;  di++ ) {{ const _i = i+di+diOff; indices[ndim-3] = _i; if( 0 <= _i && _i < oldShape[1] )
+          for( let dj=0; dj < fw;  dj++ ) {{ const _j = j+dj+djOff; indices[ndim-2] = _j; if( 0 <= _j && _j < oldShape[2] )
+          for( let dk=0; dk < cIn; dk++ ) {{                        indices[ndim-1] = dk;
+            result += filter(di,dj,dk,k) * images(...indices);
+          }}}}}}
+          return result;
+        }}
+      )
+    }}
+
+    /** Checks data type and shape of an nd.Array.
+      *
+      * Parameters
+      * ----------
+      * ndarray: nd.Array
+      *   The array whose data type and shape is to be checked.
+      * ndarray_name: String
+      *   A displayable name for ndarray. Used in the error message.
+      * dtype: 'object' or 'float32' or 'float64' or 'int32'
+      *   The data type that ndarray has to be compatible to.
+      * shape: nd.Array[:] dtype=int  or  undefined
+      *   The shape that ndarray is supposed to have. Size is not checked
+      *   for dimensions where shape contains an undefined.
+      */
+    function _checkNDArray( ndarray, ndarray_name, dtype, shape )
+    {{
+      if( ndarray === undefined )
+        throw new Error(
+            "Missing "
+          + ndarray_name
+          + " of type "
+          + dtype
+          + "["
+          + shape.map( x => x===undefined ? '?' : x )
+          + "]."
+        )
+      if( ! nd.is_subdtype(ndarray.dtype,dtype) )
+        throw new Error(`'${{ndarray_name}}' dtype must be compatible to ${{dtype}} but is ${{ndarray.dtype}}.`)
+      // TODO check dtype
+      if( shape !== undefined )
+      {{
+        if( ndarray.shape.length != shape.length )
+          throw new Error('Assertion failed.')
+  
+        for( let i=shape.length; --i >= 0; )
+          if( ndarray.shape[i] != shape[i] && shape[i] !== undefined )
+            throw new Error(
+                "Shape of "
+              + ndarray_name
+              + " does not match ["
+              + shape.map( x => x===undefined ? '?' : x )
+              + "]."
+            )
+      }}
+    }}
+
+    /** Computes the Tensorflow operation for the given inputs/placeholders.
+      *
+      * Parameters
+      * ----------
+      * inputs: JS object
+      *   An object containing the input/placeholder data for the computation. This object
+      *   is very similar to the feed_dict in Tensorflow. Substituting variables via inputs
+      *   however is not allowed.
+      *
+      * Returns
+      * -------
+      * result: nd.Array
+      */
+    let model = inputs => {{
+      // TODO these checks should be moved over to consts and ops so that they are always checked.
+      {CHECKS}
+      const result = {RESULT}
+      if( ! Object.keys(model.cache).length === 0 )
+        throw new Error('Caching did not work properly.')
+      return result
+    }}
+
+    model.cache = {{}}
+
+    /** The constants that were defined in the Tensorflow graph. Since the Tensorflow
+      * graph might be optimized and restructures under the constant assumption, it
+      * is not recommended to change constants in the JavaScript representation.
+      */
+    model.consts= {{
+      {CONSTS}
+    }}
+
+    /** The variables that were defined in the Tensorflow graph. Just as in Tensorflow
+      * these variables should be safe to change/reassign.
+      */
+    model.vars = {{
+      {VARS}
+    }}
+
+    /** The variables that were defined in the Tensorflow graph. Each operation is a
+      * function that takes an object as input, which fills in the placeholders that
+      * were defined in Tensorflow. As of yet, vars, consts and inputs are NOT checked
+      * when an operation is called directly.
+      */
+    model.ops = {{
+      {OPS}
+    }}
+
+    /** Stores number of times each tensor is used/referenced. Used to optimized caching.
+      */
+    model.refs = {REFS}
+
+    if( cached == null ) cached = true
+    if( cached )
+      for( const [name,op] of Object.entries(model.ops) )
+        model.ops[name] = inputs => {{
+          if( ! (name in model.cache) )
+            model.cache[name] = [model.refs[name],op(inputs)]
+          const uses_result = model.cache[name]
+          if( 0 === --uses_result[0] )
+            delete model.cache[name]
+          return uses_result[1]
+        }}
+
+    Object.setPrototypeOf(model,{MODEL_NAME}.prototype)
+
+    return model
+  }}
+}}
