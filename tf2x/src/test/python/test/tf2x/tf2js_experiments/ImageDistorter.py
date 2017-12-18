@@ -45,15 +45,18 @@ class ImageDistorter(object):
     The magnitude of linear distorting in x- and y-direction of the images (shorten/stretch locally).
   rotate: float
     The magnitude of random rotation of the image.
+  move: (int,int)
+    The vertical and horizontal random movement. The image size remains unchanged. Pixels moved away are replaced by 0.
   '''
 
-  def __init__(self, *, salt=0.001, pepper=0.001, noise=0.1, swirl=6, warp=0.75, rotate=8 ):
+  def __init__(self, *, salt=0.001, pepper=0.001, noise=0.1, swirl=6, warp=0.75, rotate=8, move=(2,2) ):
     self._salt = salt
     self._pepper = pepper
     self._noise = noise
     self._swirl = swirl
     self._warp = warp
     self._rotate = rotate
+    self._move = move
 
 
   def swirl(self, image):
@@ -158,12 +161,25 @@ class ImageDistorter(object):
     random_salt_n_pepa = tf.random_uniform([h,w,1], 0.0, 1.0)
     random_salt = tf.cast( random_salt_n_pepa >= 1-self._salt, tf.float32)
     random_pepa = tf.cast( random_salt_n_pepa <  self._pepper, tf.float32)
+    random_dv = tf.random_uniform( [], -self._move[0], +self._move[0]+1, dtype=tf.int32)
+    random_dh = tf.random_uniform( [], -self._move[1], +self._move[1]+1, dtype=tf.int32)
 # 
 #     image = tf.image.per_image_standardization(image)
-# 
+#
+    image = tf.contrib.image.rotate(image, random_angle)
+
+    image = image[
+      tf.maximum(0,random_dv) : h+tf.minimum(0,random_dv),
+      tf.maximum(0,random_dh) : w+tf.minimum(0,random_dh)
+    ]
+    image = tf.pad(image, [
+      (tf.maximum(0,-random_dv), tf.maximum(0,random_dv)),
+      (tf.maximum(0,-random_dh), tf.maximum(0,random_dh)),
+      (0,0)
+    ])
+
     image = tf.image.random_brightness(image, self._noise)
     image = tf.image.random_contrast(image, 0.9, 1.1)
-    image = tf.contrib.image.rotate(image, random_angle)
     image += random_noise
     image = (1-random_salt)*image + random_salt
     image = (1-random_pepa)*image

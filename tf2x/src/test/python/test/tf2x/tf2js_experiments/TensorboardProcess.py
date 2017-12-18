@@ -7,7 +7,7 @@ class TensorboardProcess(Process):
     self.logdir = logdir
 
   def run(self):
-    import tensorflow.tensorboard.tensorboard
+    from tensorboard.main import main
     import sys
     sys.argv = ['', '--logdir='+self.logdir]
-    sys.exit(tensorflow.tensorboard.tensorboard.main())
+    sys.exit( main() )

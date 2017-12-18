@@ -174,40 +174,91 @@ class {MODEL_NAME} extends Function
         oldShape = images.shape,
         newShape = Int32Array.from(oldShape),
         ndim = newShape.length,
-        [fh,fw,cIn,cOut] = filter.shape
+        [nFY,nFX,nCOld,nCNew] = filter.shape
 
-      let
-        diOff = - (fh-1 >>> 1),
-        djOff = - (fw-1 >>> 1)
-
-      if( cIn != oldShape[ndim-1] )
-        throw Error('Last dim of images must match filter.shape[2].')
+      if(  4    != oldShape.length  ) throw new Error('The images to be convoluted must have ndim=4.')
+      if( nCOld != oldShape[ndim-1] ) throw new Error('Last dim of images must match filter.shape[2].')
       
       if( padding === 'VALID' )
       {{
-        diOff = 0; newShape[ndim-3] -= fh-1
-        djOff = 0; newShape[ndim-2] -= fw-1
+        newShape[ndim-3] -= nFY-1
+        newShape[ndim-2] -= nFX-1
       }}
+
       newShape[ndim-3] = 1 + Math.trunc( (newShape[ndim-3] - 1) / strides[1] )
       newShape[ndim-2] = 1 + Math.trunc( (newShape[ndim-2] - 1) / strides[2] )
-      newShape[ndim-1]  = cOut
+      newShape[ndim-1] = nCNew
 
+      let
+        dYOff = 0,
+        dXOff = 0
+
+      if( padding === 'SAME' )
+      {{
+        dYOff = oldShape[ndim-3] - (newShape[ndim-3]-1)*strides[1] - nFY
+        dXOff = oldShape[ndim-2] - (newShape[ndim-2]-1)*strides[2] - nFX
+        dYOff = Math.trunc( dYOff / 2 )
+        dXOff = Math.trunc( dXOff / 2 )
+      }}
+/*
       return nd.tabulate(
-        newShape, 'float32'/*<- FIXME*/,
+        newShape, 'float32', // <- FIXME add choice float64/float32 ?
         (...indices) => {{
           const
-            i = indices[ndim-3] * strides[1],
-            j = indices[ndim-2] * strides[2],
-            k = indices[ndim-1];
+             y  = indices[ndim-3] * strides[1] + dYOff,
+             x  = indices[ndim-2] * strides[2] + dXOff,
+            cNew= indices[ndim-1];
           let result = 0.0;
-          for( let di=0; di < fh;  di++ ) {{ const _i = i+di+diOff; indices[ndim-3] = _i; if( 0 <= _i && _i < oldShape[1] )
-          for( let dj=0; dj < fw;  dj++ ) {{ const _j = j+dj+djOff; indices[ndim-2] = _j; if( 0 <= _j && _j < oldShape[2] )
-          for( let dk=0; dk < cIn; dk++ ) {{                        indices[ndim-1] = dk;
-            result += filter(di,dj,dk,k) * images(...indices);
+          for( let  fY =0;  fY  < nFY;      fY++ ) {{ const _y = y+fY; indices[ndim-3] = _y; if( 0 <= _y && _y < oldShape[1] )
+          for( let  fX =0;  fX  < nFX;      fX++ ) {{ const _x = x+fX; indices[ndim-2] = _x; if( 0 <= _x && _x < oldShape[2] )
+          for( let cOld=0; cOld < nCOld; cOld++ ) {{                   indices[ndim-1] = cOld;
+            result += filter(fY,fX,cOld,cNew) * images(...indices);
           }}}}}}
           return result;
         }}
       )
+*/
+      const
+        // FLAT DATA
+        oldData   = images.data,
+        newData   = new Float32Array( newShape.reduce( (m,n) => m*n ) ),
+        filtData  = filter.data,
+        nBatch= oldShape[0],
+        oldNY = oldShape[1], oldNX = oldShape[2],
+        newNY = newShape[1], newNX = newShape[2],
+        // STRIDES
+        strY = strides[1],
+        strX = strides[2],
+        oldStrX   = nCOld, oldStrY = oldNX * oldStrX, oldStrB = oldNY * oldStrY,
+        newStrX   = nCNew, newStrY = newNX * newStrX, newStrB = newNY * newStrY,
+        filtStrOld= nCNew,
+        filtStrX  = nCOld* filtStrOld,
+        filtStrY  = nFX  * filtStrX
+
+      for( let b=0;       b < nBatch; b++ )
+      for( let newY=0; newY < newNY; newY++ )
+      for( let newX=0; newX < newNX; newX++ )
+      {{
+        let oldY = newY * strY + dYOff
+        for( let fY=0; fY < nFY; fY++, oldY++ )
+        if( 0 <= oldY && oldY < oldNY )
+        {{
+          let oldX = newX * strX + dXOff
+          for( let fX=0; fX < nFX; fX++, oldX++ )
+          if( 0 <= oldX && oldX < oldNX )
+          {{
+            let
+              iOld = b*oldStrB + oldY*oldStrY + oldX*oldStrX,
+              iNew = b*newStrB + newY*newStrY + newX*newStrX,
+              iFilt= fY*filtStrY + fX*filtStrX
+  
+            for( let cOld=nCOld;  cOld-- > 0; iOld++, iNew -= nCNew )
+            for( let cNew=nCNew;  cNew-- > 0; )
+              newData[iNew++] += filtData[iFilt++] * oldData[iOld]
+          }}
+        }}
+      }}
+      return new nd.Array(newShape, newData)
     }}
 
     /** Checks data type and shape of an nd.Array.

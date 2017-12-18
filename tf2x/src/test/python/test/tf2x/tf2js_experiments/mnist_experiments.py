@@ -13,10 +13,10 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from pkg_resources import resource_string
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 
-from mnist_train import Model
 import numpy as np, tf2x
-from tf2x.tf2js import tensor2js
-from tf2x.tf2dot import tf2dot
+from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
+from tf2x import tensor2js
+from tf2x import tf2dot
 
 
 _nd_js = resource_string(tf2x.__name__, 'nd.js').decode('utf-8')
@@ -74,13 +74,13 @@ def main():
 #   in_images_train     = mnist.train     .images.reshape(-1,h,w,1)
 #   in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
   in_images_test      = mnist.test      .images.reshape(-1,h,w,1) # <- used to estimate the model error during training
-  in_images_test = in_images_test[:1]
+  in_images_test = in_images_test[:100]
     
 #   in_labels_train     = mnist.train     .labels
 #   in_labels_validation= mnist.validation.labels
 #   in_labels_test      = mnist.test      .labels # <- used to estimate the model error during training
 
-  model = Model(w,h, deploy=True)
+  model = MNIST_Model(w,h, deploy=True)
 
   init_vars = tf.global_variables_initializer()
   saver = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
@@ -90,7 +90,7 @@ def main():
   with tf.Session() as sess:
 
     sess.run(init_vars)
-    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2260')
+    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2300')
     saver.restore(sess, model_path)
 
     result = sess.run( model.out_prediction, feed_dict={model.in_images: in_images_test} )
@@ -100,9 +100,6 @@ def main():
 #     dot.render( os.path.join(tmp_dir,'graph.gv'), view=True )
 
     model_js = tensor2js(model.out_prediction, sess=sess)
-
-    print( np.array2string( result, separator=', ', max_line_width=256 ) )
-    print()
 
   def arrayStr( arr, indent='   ', prefix='[\n    ', suffix='\n  ]' ):
     '''
@@ -142,6 +139,9 @@ def main():
   print()
   proc = subprocess.Popen(['node', '--max_old_space_size=12288', raw_path], stderr=subprocess.STDOUT)
   proc.wait()
+  print( np.array2string( result, separator=', ', max_line_width=256 ) )
+  print()
+
 
 
 if '__main__' == __name__:

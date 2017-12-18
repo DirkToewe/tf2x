@@ -5,7 +5,7 @@ Created on Nov 10, 2017
 '''
 
 import numpy as np, tensorflow as tf
-from tf2x.tf2dot import tf2dot
+from tf2x import tf2dot
 from tempfile import mkdtemp
 
 def main():
@@ -27,18 +27,22 @@ def main():
 #     lambda: tf.Variable(3, name='Const3')
 #   )
 
-  INPUT = tf.constant(
-#     np.column_stack([
-      np.arange(4),
-#       np.arange(1000,2000)
-#     ]),
-    name='INPUT'
-  )
-  OUTPUT = tf.map_fn(lambda x: x*1337, INPUT, parallel_iterations=1)
-#   OUTPUT = tf.map_fn(lambda x: tf.Print(x*1337, [x]), INPUT, parallel_iterations=1)
-  OUTPUT = tf.identity(OUTPUT, name='OUTPUT')
+#   INPUT = tf.constant(
+# #     np.column_stack([
+#       np.arange(4),
+# #       np.arange(1000,2000)
+# #     ]),
+#     name='INPUT'
+#   )
+#   OUTPUT = tf.map_fn(lambda x: x*1337, INPUT, parallel_iterations=1)
+# #   OUTPUT = tf.map_fn(lambda x: tf.Print(x*1337, [x]), INPUT, parallel_iterations=1)
+#   OUTPUT = tf.identity(OUTPUT, name='OUTPUT')
 
 #   OUTPUT = tf.TensorArray(tf.float64, size=4)
+
+  INPUT = tf.constant([1,2,3], name='INPUT')
+  MAP_FN = tf.map_fn( lambda i: tf.multiply(i,i, name='I_TIMES_I'), INPUT, name='MAP_FN' )
+  OUTPUT = tf.identity(MAP_FN, name='OUTPUT')
 
   with tf.Session() as sess:
 
@@ -48,7 +52,7 @@ def main():
     print( sess.run(OUTPUT) )
 
     dot = tf2dot(OUTPUT, sess=sess)
-    dot.format = 'svg'
+    dot.format = 'pdf'
     dot.attr( root='INPUT' )
 #     dot.attr( splines='true')
 #     dot.attr( rank='same' )

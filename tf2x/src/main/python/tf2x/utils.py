@@ -4,10 +4,28 @@ Created on Nov 1, 2017
 @author: Dirk Toewe
 '''
 
-import tensorflow as tf
-from typing import Union
+from typing import Union, Set
 
-def ops( group: Union[tf.Tensor,tf.Graph,tf.Operation] ):
+import tensorflow as tf
+
+
+def tensors( tensor: tf.Tensor ) -> Set[tf.Tensor]:
+  '''
+  Returns all tensorflow tensors the specified tensor depends on, including
+  the tensor itself.
+  '''
+  tensors = set()
+  def fetch_tensors( tensor: tf.Tensor ):
+    if tensor not in tensors:
+      tensors.add(tensor)
+      for t in tensor.op.inputs:
+        fetch_tensors(t)
+  fetch_tensors(tensor)
+  return tensors
+
+
+
+def ops( group: Union[tf.Tensor,tf.Graph,tf.Operation] ) -> Set[tf.Operation]:
   '''
   Returns all tensorflow operations associated with the given parent object.
 

@@ -13,9 +13,9 @@ import webbrowser
 
 from pkg_resources import resource_string
 
-from mnist_train import Model
 import numpy as np, tf2x
-from tf2x.tf2js import tensor2js
+from tf2x import tensor2js
+from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
 
 
 _nd_js = resource_string(tf2x.__name__, 'nd.js').decode('utf-8')
@@ -26,7 +26,7 @@ def main():
 
   w,h = 28,28
 
-  model = Model(w,h, deploy=True)
+  model = MNIST_Model(w,h, deploy=True)
 
   init_vars = tf.global_variables_initializer()
   saver = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
@@ -35,7 +35,7 @@ def main():
 
   with tf.Session() as sess:
     sess.run(init_vars)
-    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2260')
+    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2200')
     saver.restore(sess, model_path)
     model_js = tensor2js(model.out_prediction, sess=sess)
 
