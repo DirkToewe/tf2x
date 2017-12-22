@@ -11,12 +11,14 @@ Created on Sep 11, 2017
 import logging, numpy as np, os, tensorflow as tf, webbrowser
 
 from scipy.misc import imsave
-from tensorflow import newaxis as tf_new
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 
-from test.tf2x.tf2js_experiments.ImageDistorter import ImageDistorter
-from test.tf2x.tf2js_experiments.TensorboardProcess import TensorboardProcess
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
+from test.tf2x.tf2js_experiments.TensorboardProcess import TensorboardProcess
+
+
+PROJECT_DIR = os.path.expanduser('~/Pictures/MNIST/')
+
 
 # FIXME:
 # In practice, the algorithm perfoms terribly especially, if the numbers tested touch the image border
@@ -35,7 +37,7 @@ def main():
   ##
   ## READ DATA
   ##
-  mnist = mnist_data.read_data_sets( os.path.expanduser('~/Pictures/MNIST/data'), one_hot=True)
+  mnist = mnist_data.read_data_sets( os.path.join(PROJECT_DIR, 'data/'), one_hot=True)
 
   in_images_train     = mnist.train     .images.reshape(-1,h,w,1)
 #   in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
@@ -48,12 +50,12 @@ def main():
   ##
   ## SUMMARY DATA: used to inspect and debug model and training
   ##
-  summary_dir = os.path.expanduser('~/Pictures/MNIST/summary')
+  summary_dir = os.path.join(PROJECT_DIR, 'summary/')
   summary_out = tf.summary.merge_all()
   summary_log = tf.summary.FileWriter(summary_dir)
   summary_embed_size = 32
 
-  summary_sprites_path = os.path.expanduser('~/Pictures/MNIST/summary/sprites.png')
+  summary_sprites_path = os.path.join(summary_dir, 'sprites.png')
   summary_sprites = np.row_stack(
     np.column_stack( col for col in row )
     for row in in_images_test[:summary_embed_size**2].reshape(summary_embed_size,summary_embed_size,h,w)
@@ -64,7 +66,7 @@ def main():
   imsave(summary_sprites_path, summary_sprites)
 
   summary_embed_size **= 2
-  summary_labels_path = os.path.expanduser('~/Pictures/MNIST/summary/sprites.tsv')
+  summary_labels_path = os.path.join(summary_dir, 'sprites.tsv')
   with open(summary_labels_path, 'w') as out:
     out.write( '\n'.join(
       '%d' % label
@@ -87,7 +89,7 @@ def main():
   ##
   saver = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
 
-  TensorboardProcess(logdir = '~/Pictures/MNIST/summary/').start()
+  TensorboardProcess(logdir = summary_dir).start()
   webbrowser.open('http://localhost:6006')
 
   ##
@@ -98,7 +100,7 @@ def main():
     sess.run( tf.global_variables_initializer() )
     summary_log.add_graph(sess.graph)
 
-    model_dir = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt')
+    model_dir = os.path.join(summary_dir, 'model.ckpt')
 
     try:
       load_path = model_dir + "-3800"
@@ -159,7 +161,7 @@ def main():
           summarize(step)
           print()
 
-        if 0 < step and step % 20 == 0:
+        if 0 < step and step % 100 == 0:
           print('  saving embedding...', end='')
           sess.run(
             summary_embed_update,

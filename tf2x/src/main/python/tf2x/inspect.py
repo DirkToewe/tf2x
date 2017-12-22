@@ -1,4 +1,6 @@
 '''
+A collection of utility methods for the inspection of Tensorflow computation graphs.
+
 Created on Nov 1, 2017
 
 @author: Dirk Toewe
@@ -22,6 +24,32 @@ def tensors( tensor: tf.Tensor ) -> Set[tf.Tensor]:
         fetch_tensors(t)
   fetch_tensors(tensor)
   return tensors
+
+
+
+def trainable_vars( loss: tf.Tensor ) -> Set[tf.Variable]:
+  '''
+  Returns alls the trainable variables a loss function depends on.
+
+  Parameters
+  ----------
+  loss: tf.Tensor
+    The loss function for which the trainable variables are to be returned.
+
+  Returns
+  -------
+  train_vars: {tf.Variable}
+    A set of all trainable variables that loss depends on.
+  '''
+  op2var = {
+    var.op: var
+    for var in tf.trainable_variables()
+  }
+  return {
+    op2var[tensor.op]
+    for tensor in tensors(loss)
+    if tensor.op in op2var
+  }
 
 
 
@@ -65,3 +93,5 @@ def ops( group: Union[tf.Tensor,tf.Graph,tf.Operation] ) -> Set[tf.Operation]:
 
   fetch_ops(op)
   return ops
+
+

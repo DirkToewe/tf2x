@@ -7,16 +7,16 @@ Created on Sep 9, 2017
 @author: Dirk Toewe
 '''
 
-import json, os, subprocess, tensorflow as tf
-from tempfile import NamedTemporaryFile, mkdtemp
+import os, subprocess, tensorflow as tf
+from tempfile import mkdtemp
 
 from pkg_resources import resource_string
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 
 import numpy as np, tf2x
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
-from tf2x import tensor2js
-from tf2x import tf2dot
+from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
+from tf2x import tensor2js#, tf2dot
 
 
 _nd_js = resource_string(tf2x.__name__, 'nd.js').decode('utf-8')
@@ -69,7 +69,7 @@ def main():
 
   w,h = 28,28
 
-  mnist = mnist_data.read_data_sets( os.path.expanduser('~/Pictures/MNIST/data'), one_hot=True)
+  mnist = mnist_data.read_data_sets( os.path.join(PROJECT_DIR, 'data'), one_hot=True)
 
 #   in_images_train     = mnist.train     .images.reshape(-1,h,w,1)
 #   in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
@@ -90,7 +90,7 @@ def main():
   with tf.Session() as sess:
 
     sess.run(init_vars)
-    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2300')
+    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-2100')
     saver.restore(sess, model_path)
 
     result = sess.run( model.out_prediction, feed_dict={model.in_images: in_images_test} )

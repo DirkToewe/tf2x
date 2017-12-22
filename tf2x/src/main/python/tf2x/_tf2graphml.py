@@ -7,7 +7,7 @@ Created on Oct 28, 2017
 from typing import Union, Set
 
 import tensorflow as tf
-from tf2x.utils import ops
+from tf2x.inspect import ops
 import xml.etree.ElementTree as xml
 
 
@@ -104,7 +104,7 @@ def _ops2graphml( ops: Set[tf.Operation] ):
       )
 
       srcShape = '[...]'
-      if None is not src.shape: # <- FIXME
+      if None is not src.shape.dims:
         srcShape = ','.join( ':' if None is d else str(d) for d in src.shape )
       srcShape = '[%s]' % srcShape
 

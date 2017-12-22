@@ -171,11 +171,14 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
         return repr( float(arr) )#np.array_str(arr, max_line_width=256, precision=1024, suppress_small=False)
 
 
-  def shapeStr( shape ):
+  def shapeStr( shape: tf.TensorShape ):
     '''
     Returns (as string) a JavaScript representation of a np.NDArray shape. Unspecified dimensions are
     represented as undefined in JavaScript.
     '''
+    if None is shape.dims:
+      return 'undefined'
+
     shape = (
       'undefined' if None is dim.value else str(dim.value)
       for dim in shape

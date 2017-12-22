@@ -49,7 +49,7 @@ def main():
 #     sess.run( tf.global_variables_initializer() )
 #     print( sess.run(y, feed_dict = {'INPUT:0': 0}) )
 
-    print( sess.run(OUTPUT) )
+#    print( sess.run(OUTPUT) )
 
     dot = tf2dot(OUTPUT, sess=sess)
     dot.format = 'pdf'

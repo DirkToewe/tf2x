@@ -14,8 +14,9 @@ import webbrowser
 from pkg_resources import resource_string
 
 import numpy as np, tf2x
-from tf2x import tensor2js
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
+from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
+from tf2x import tensor2js
 
 
 _nd_js = resource_string(tf2x.__name__, 'nd.js').decode('utf-8')
@@ -35,7 +36,7 @@ def main():
 
   with tf.Session() as sess:
     sess.run(init_vars)
-    model_path = os.path.expanduser('~/Pictures/MNIST/summary/model.ckpt-2200')
+    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-2100')
     saver.restore(sess, model_path)
     model_js = tensor2js(model.out_prediction, sess=sess)
 

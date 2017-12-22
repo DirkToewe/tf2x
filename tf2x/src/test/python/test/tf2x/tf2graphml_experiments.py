@@ -5,9 +5,10 @@ Created on Oct 28, 2017
 '''
 
 import numpy as np, os, subprocess, tensorflow as tf
-from tf2x.tf2graphml import tf2graphml
+from tf2x import tf2graphml
 from xml.dom import minidom
 import xml.etree.ElementTree as xml
+from tempfile import mkdtemp
 
 def main():
 
@@ -52,7 +53,9 @@ def main():
 
 #     graph_doc = graph2graphml( tf.get_default_graph() )
     graph_doc = tf2graphml(OUTPUT)
-    filepath = os.path.expanduser('~/Downloads/test.graphml')
+    tmpdir = mkdtemp()
+    filepath = os.path.join(tmpdir, 'test.graphml')
+    print(filepath)
 
     graph_doc = minidom.parseString(
       xml.tostring(graph_doc.getroot(), 'unicode')

@@ -8,7 +8,7 @@ from typing import Union, Set
 from graphviz import Digraph
 
 import numpy as np, tensorflow as tf
-from tf2x.utils import ops
+from tf2x.inspect import ops
 import logging
 
 
@@ -150,7 +150,7 @@ def _ops2dot( ops: Set[tf.Operation], *, sess: tf.Session=None ):
       sourceNode = fetch_node(source.op.name)
 
       srcShape = '[...]'
-      if None is not source.shape: # <- FIXME
+      if None is not source.shape.dims: # <- FIXME
         srcShape = ','.join( ':' if None is d else str(d) for d in source.shape )
       srcShape = '[%s]' % srcShape
       label = str(source.dtype.name) + srcShape
