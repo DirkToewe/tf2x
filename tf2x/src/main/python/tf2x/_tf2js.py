@@ -11,6 +11,8 @@ from pkg_resources import resource_string
 import numpy as np, os, tensorflow as tf
 from _collections import defaultdict
 import json
+from base64 import b64encode
+from tf2x import nd
 
 
 _tf2js_template = resource_string(__package__, 'tf2js.js.template').decode('utf-8')
@@ -154,23 +156,6 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
 #   print( json.dumps(refs) )
 #   print('------')
 
-  def arrayStr( arr, indent='       ', prefix='[\n        ', suffix='\n      ]' ):
-    '''
-    Returns (as string) an (hopefully) pretty printed JavaScript representation of an ND-Array.
-    '''
-    if arr.ndim > 0:
-      indent += ' '
-      if arr.ndim == 1:
-        prefix, suffix = '[', ']'
-      infix = ', ' if arr.ndim == 1 else ',\n'+indent
-      return prefix + infix.join( arrayStr(a,indent,'[',']') for a in arr) + suffix
-    else:
-      if isinstance(arr,np.integer):
-        return repr( int(arr) )
-      else:
-        return repr( float(arr) )#np.array_str(arr, max_line_width=256, precision=1024, suppress_small=False)
-
-
   def shapeStr( shape: tf.TensorShape ):
     '''
     Returns (as string) a JavaScript representation of a np.NDArray shape. Unspecified dimensions are
@@ -189,8 +174,8 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
   result = _tf2js_template.format(
     MODEL_NAME = model_name,
     RESULT = result,
-    CONSTS = ',\n      '.join( "'{}': nd.array('{}', {})".format(name,typ,arrayStr(vals)) for name,(typ,_,vals) in consts.items() ),
-    VARS   = ',\n      '.join( "'{}': nd.array('{}', {})".format(name,typ,arrayStr(vals)) for name,(typ,_,vals) in   vars.items() ),
+    CONSTS = ',\n      '.join( "'{}': {}".format(name,nd.arrayB64(vals)) for name,(typ,_,vals) in consts.items() ),
+    VARS   = ',\n      '.join( "'{}': {}".format(name,nd.arrayB64(vals)) for name,(typ,_,vals) in   vars.items() ),
     OPS    = ',\n      '.join( "{:18s}: inputs => {}"    .format("'%s'" % name,expr)      for name,expr in ops.items() ),
     CHECKS =  '\n      '.join(
       '_checkNDArray({0}, "{0}", \'{1}\', {2});'.format( "%s['%s']" % (kind,name), type, shapeStr(shape) )

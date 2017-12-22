@@ -40,22 +40,6 @@ def main():
     saver.restore(sess, model_path)
     model_js = tensor2js(model.out_prediction, sess=sess)
 
-  def arrayStr( arr, indent='   ', prefix='[\n    ', suffix='\n  ]' ):
-    '''
-    Returns (as string) an (hopefully) pretty printed JavaScript representation of an ND-Array.
-    '''
-    if arr.ndim > 0:
-      indent += ' '
-      if arr.ndim == 1:
-        prefix,suffix = '[', ']'
-      infix = ', ' if arr.ndim == 1 else ',\n'+indent
-      return prefix + infix.join( arrayStr(a,indent,'[',']') for a in arr) + suffix
-    else:
-      if isinstance(arr,np.integer):
-        return repr( int(arr) )
-      else:
-        return repr( float(arr) )#np.array_str(arr, max_line_width=256, precision=1024, suppress_small=False)
-
   html_gui = _gui_template.format(
     ND =_nd_js,
     MODEL = model_js

@@ -37,7 +37,7 @@ catch(err){
     constructor(shape, data)
     {
       if( shape.some(s => s < 1) )
-        throw new Error('Every entry of shape must be >= 1.')
+        throw new Error(`Invalid shape: ${shape}.`)
       function self(...indices) { return self.data[self._flat_idx(indices)] }
       Object.setPrototypeOf(self, NDArray.prototype)
       self.shape = shape
@@ -465,6 +465,61 @@ catch(err){
     }
 
 //    convolve(options, conv_op) // <- IDEA: img.convolve({shape=[4,4,3], paddings=['same','same','none']}, (values, ...indices) => values.sum() )
+  }
+
+  {
+    const
+      ch_b64= 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',
+      ch_ws = '\f\n\r\t\v',
+      LUT = new Int32Array(256)
+    LUT.fill(-2)
+
+    for( let i=ch_b64.length; i-- > 0; ) LUT[ ch_b64.charCodeAt(i) ] =  i
+    for( let i=ch_ws .length; i-- > 0; ) LUT[ ch_ws .charCodeAt(i) ] = -1
+
+    LUT[ '='.charCodeAt(0) ] = 0
+
+    nd.arrayFromB64 = (dtype, shape, content) =>
+    {
+      shape = Int32Array.from(shape)
+  
+      const
+        result = new nd.dtypes[dtype]( shape.reduce( (m,n) => m*n, 1 ) ),
+        buf = new Uint8Array(result.buffer)
+
+      buf[0] = 1
+      const bigEndian = ( new Int16Array(result.buffer) )[0] !== 1
+
+      let i=0, j=0
+  
+      function next6() {
+        let result = LUT[content.charCodeAt(j++)]
+        // skip whitespaces
+        while( result === -1 )
+          result = LUT[content.charCodeAt(j++)]
+
+        if( ! (result >= 0) ) // <- handles undefined
+          throw new Error(`Illegal Base64 character: '${content.charCodeAt(j-1)}'`)
+
+        return result
+      }
+  
+      while( i < buf.length ) {
+        const
+          bit0to5  = next6(),
+          bit6to11 = next6(),
+          bit12to17= next6(),
+          bit18to23= next6()
+        buf[i++] = ( bit0to5             << 2) | (bit6to11  >> 4)
+        buf[i++] = ((bit6to11  & 0b1111) << 4) | (bit12to17 >> 2)
+        buf[i++] = ((bit12to17 & 0b0011) << 6) | (bit18to23 & 0b111111)
+      }
+
+      if( bigEndian )
+        throw new Error('Not yet implemented for BigEndian machines.') // <- FIXME
+
+      return new nd.Array(shape,result)
+    }
   }
 
   nd.array = (dtype, content) =>

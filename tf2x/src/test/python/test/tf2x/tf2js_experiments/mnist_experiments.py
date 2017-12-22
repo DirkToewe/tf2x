@@ -17,6 +17,8 @@ import numpy as np, tf2x
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
 from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
 from tf2x import tensor2js#, tf2dot
+from datetime import datetime
+from tf2x import nd
 
 
 _nd_js = resource_string(tf2x.__name__, 'nd.js').decode('utf-8')
@@ -37,7 +39,7 @@ const model = new Model()
 
 console.log("parsing input...")
 
-const input = nd.array('float32',{INPUT})
+const input = {INPUT}
 
 console.log("executing model...")
 
@@ -93,7 +95,9 @@ def main():
     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-2100')
     saver.restore(sess, model_path)
 
+    t0 = datetime.now()
     result = sess.run( model.out_prediction, feed_dict={model.in_images: in_images_test} )
+    dt = datetime.now() - t0
 
 #     dot = tf2dot(model.out_prediction, sess=sess)
 #     dot.format = 'svg'
@@ -101,26 +105,10 @@ def main():
 
     model_js = tensor2js(model.out_prediction, sess=sess)
 
-  def arrayStr( arr, indent='   ', prefix='[\n    ', suffix='\n  ]' ):
-    '''
-    Returns (as string) an (hopefully) pretty printed JavaScript representation of an ND-Array.
-    '''
-    if arr.ndim > 0:
-      indent += ' '
-      if arr.ndim == 1:
-        prefix,suffix = '[', ']'
-      infix = ', ' if arr.ndim == 1 else ',\n'+indent
-      return prefix + infix.join( arrayStr(a,indent,'[',']') for a in arr) + suffix
-    else:
-      if isinstance(arr,np.integer):
-        return repr( int(arr) )
-      else:
-        return repr( float(arr) )#np.array_str(arr, max_line_width=256, precision=1024, suppress_small=False)
-
   script = _script_template.format(
     ND =_nd_js,
     MODEL = model_js,
-    INPUT = arrayStr(in_images_test)
+    INPUT = nd.arrayB64(in_images_test)
   )
 
   raw_path = os.path.join(tmp_dir,'raw.js')
@@ -141,6 +129,7 @@ def main():
   proc.wait()
   print( np.array2string( result, separator=', ', max_line_width=256 ) )
   print()
+  print(dt)
 
 
 
