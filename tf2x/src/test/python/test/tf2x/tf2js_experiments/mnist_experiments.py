@@ -16,7 +16,7 @@ from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 import numpy as np, tf2x
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
 from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
-from tf2x import tensor2js#, tf2dot
+from tf2x import tensor2js, tf2dot
 from datetime import datetime
 from tf2x import nd
 
@@ -73,35 +73,38 @@ def main():
 
   mnist = mnist_data.read_data_sets( os.path.join(PROJECT_DIR, 'data'), one_hot=True)
 
-#   in_images_train     = mnist.train     .images.reshape(-1,h,w,1)
-#   in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
+  in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
   in_images_test      = mnist.test      .images.reshape(-1,h,w,1) # <- used to estimate the model error during training
-  in_images_test = in_images_test[:100]
-    
-#   in_labels_train     = mnist.train     .labels
-#   in_labels_validation= mnist.validation.labels
-#   in_labels_test      = mnist.test      .labels # <- used to estimate the model error during training
+  in_images_test = in_images_test[:1000]
+
+  in_labels_validation= mnist.validation.labels
 
   model = MNIST_Model(w,h, deploy=True)
 
-  init_vars = tf.global_variables_initializer()
   saver = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
 
   tmp_dir = mkdtemp()
 
   with tf.Session() as sess:
 
-    sess.run(init_vars)
-    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-2100')
+    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
     saver.restore(sess, model_path)
+
+    accuracy = sess.run( model.out_accuracy, feed_dict={
+      model.in_images: in_images_validation,
+      model.in_labels: in_labels_validation
+    })
+
+    print('Validation accuracy: %.2f%%' % (accuracy*100))
 
     t0 = datetime.now()
     result = sess.run( model.out_prediction, feed_dict={model.in_images: in_images_test} )
     dt = datetime.now() - t0
 
 #     dot = tf2dot(model.out_prediction, sess=sess)
-#     dot.format = 'svg'
-#     dot.render( os.path.join(tmp_dir,'graph.gv'), view=True )
+#     dot.format = 'svgz'
+#     dot.render( os.path.join(tmp_dir,'graph.gv'), view=True, cleanup=True )
+#     dot.attr('graph', dpi='100')
 
     model_js = tensor2js(model.out_prediction, sess=sess)
 
@@ -125,7 +128,12 @@ def main():
 
   print('tmp_dir: ' + tmp_dir)
   print()
-  proc = subprocess.Popen(['node', '--max_old_space_size=12288', raw_path], stderr=subprocess.STDOUT)
+  proc = subprocess.Popen([
+    'node',
+#     '--prof',
+    '--max_old_space_size=12288',
+    'raw.js'
+  ], stderr=subprocess.STDOUT, cwd=tmp_dir)
   proc.wait()
   print( np.array2string( result, separator=', ', max_line_width=256 ) )
   print()

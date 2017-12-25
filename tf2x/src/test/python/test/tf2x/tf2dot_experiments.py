@@ -40,9 +40,13 @@ def main():
 
 #   OUTPUT = tf.TensorArray(tf.float64, size=4)
 
-  INPUT = tf.constant([1,2,3], name='INPUT')
-  MAP_FN = tf.map_fn( lambda i: tf.multiply(i,i, name='I_TIMES_I'), INPUT, name='MAP_FN' )
-  OUTPUT = tf.identity(MAP_FN, name='OUTPUT')
+  INPUT = tf.constant(
+    np.random.rand(40,20,50),
+    name='INPUT'
+  )
+  OUTPUT = tf.identity(INPUT, name='OUTPUT')
+#   MAP_FN = tf.map_fn( lambda i: tf.multiply(i,i, name='I_TIMES_I'), INPUT, name='MAP_FN' )
+#   OUTPUT = tf.identity(MAP_FN, name='OUTPUT')
 
   with tf.Session() as sess:
 

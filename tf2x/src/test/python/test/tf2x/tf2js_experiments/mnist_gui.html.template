@@ -11,9 +11,10 @@
     <script type="text/javascript">
     'use strict'; {{
       const header = document.createElement('div');
-      header.innerHTML = 'Draw a number:'
+      header.innerHTML = 'Draw a decimal digit:'
       document.body.appendChild(header);
 
+      // JS code Blob for the Web-Worker
       let classifier = new Blob(
         [`
           ${{ document.getElementById('nd.js').innerHTML }}
@@ -22,15 +23,19 @@
           model = new model(true)
 
           self.onmessage = msg => {{
+//console.time('CLASSIFY_IMG')
             let images = msg.data
+            // convert Uint8Array => nd.Array
             images = new nd.Array( [1,28,28,4], Float32Array.from(images, x => x / 765.0 ) )
+            // select and average RGB channels
             images = images
               .slice('...',[0,3,])
               .reduce(-1, 'float32', (x,y) => x+y )
               .reshape(1,28,28,1)
-//            console.log( images.reshape(1,28,28).toString() )
+//console.log( images.reshape(1,28,28).toString() )
             const prediction = model({{ 'in/images:0': images }})
             postMessage(prediction.data);
+//console.timeEnd('CLASSIFY_IMG')
           }};
         `],
         {{ type: 'application/javascript' }}
@@ -76,17 +81,17 @@
         else {{
           status.innerHTML = ''
           classifierRunning = false
-          msg.data.forEach( (progress,i) => {{
-            progressBars[i][0].value = progress
-            progressBars[i][1].innerHTML = `${{(progress*100).toFixed(1)}}%`
-          }})
         }}
+        msg.data.forEach( (progress,i) => {{
+          progressBars[i][0].value = progress
+          progressBars[i][1].innerHTML = `${{(progress*100).toFixed(1)}}%`
+        }})
       }}
 
       function reclassify()
       {{
         let data = ctx.getImageData(0,0, canvas.width, canvas.height).data
-        progressBars.forEach( bar_label => {{ bar_label[0].value=0; bar_label[1].innerHTML='' }} )
+//        progressBars.forEach( bar_label => {{ bar_label[0].value=0; bar_label[1].innerHTML='' }} ) // <- only necessary if classifier is too slow
         if( ! classifierRunning ) {{
           status.innerHTML = 'Calculating...'
           classifier.postMessage(data)

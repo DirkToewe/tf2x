@@ -4,6 +4,7 @@
 import numpy as np, tensorflow as tf
 from tensorflow import newaxis as tf_new
 from test.tf2x.tf2js_experiments.ImageDistorter import ImageDistorter
+from tf2x.inspect import trainable_vars
 
 
 def _relu( logits ):
@@ -44,13 +45,13 @@ class MNIST_Model:
     with tf.name_scope('in'):
       in_images    = tf.placeholder( name='images',    dtype=tf.float32, shape=[None,h,w,1])
       in_labels    = tf.placeholder( name='labels',    dtype=tf.float32, shape=[None,10])
-      in_train_mode= tf.placeholder( name='train_mode',dtype=tf.bool,    shape=[])
 
     self.in_images    = in_images
     self.in_labels    = in_labels
-    self.in_train_mode= in_train_mode
 
     if not deploy:
+      in_train_mode= tf.placeholder( name='in/train_mode',dtype=tf.bool,    shape=[])
+      self.in_train_mode= in_train_mode
       in_images = tf.cond(
         in_train_mode,
         lambda: tf.map_fn(ImageDistorter(), in_images),
@@ -111,23 +112,10 @@ class MNIST_Model:
       
       var_l5_weights= tf.Variable( name='l5_weights',dtype=tf.float32, initial_value=np.zeros([160,10]) )
       var_l5_bias   = tf.Variable( name='l5_bias',   dtype=tf.float32, initial_value=np.zeros(    [10]) )
-  
-    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var/')
-  
-    for var in var_list:
-      tf.summary.histogram(var.name, var)
-  
-    nVars = np.sum(
-      np.prod( np.array(var.shape, dtype=np.int64) )
-      for var in var_list
-    )
-    print()
-    print('#vars = %s' % nVars)
-    print()
 
     with tf.name_scope('op'):
       in_images_stack = tf.reshape(in_images, [-1,h,w,1])
-#       # MIRROR THE IMAGES ALONG ALL AXES TO MAKE SYMMETRY INFORMATION AVAILABLE FOR THE CONVOLUTIONAL KERNELS
+#       # MIRROR IMAGES TO MAKE SYMMETRY INFORMATION AVAILABLE FOR CONV2D KERNELS ... DID NOT WORK :(
 #       in_images_stack = tf.reshape(in_images, [-1,h,w])
 #       in_images_stack = tf.stack([
 #         in_images_stack,
@@ -141,8 +129,10 @@ class MNIST_Model:
       with tf.name_scope('l1'): op_l1,upd1=bnorm(tf.nn.conv2d( in_images_stack,  var_l1_filter, [1,1,1,1],'VALID'),var_l1_bias,conv=True ); op_l1=_relu(op_l1); print('layer1.shape: %s' % op_l1.shape)
       with tf.name_scope('l2'): op_l2,upd2=bnorm(tf.nn.conv2d( op_l1,            var_l2_filter, [1,2,2,1], 'SAME'),var_l2_bias,conv=True ); op_l2=_relu(op_l2); print('layer2.shape: %s' % op_l2.shape)
       with tf.name_scope('l3'): op_l3,upd3=bnorm(tf.nn.conv2d( op_l2,            var_l3_filter, [1,2,2,1], 'SAME'),var_l3_bias,conv=True ); op_l3=_relu(op_l3); print('layer3.shape: %s' % op_l3.shape)
-      with tf.name_scope('l4'): op_l4,upd4=bnorm(tf.reduce_sum(op_l3[...,tf_new]*var_l4_weights, axis=[-2,-3,-4] ),var_l4_bias,conv=False); op_l4=_relu(op_l4); print('layer4.shape: %s' % op_l4.shape)
-      with tf.name_scope('l5'): op_l5,upd5=bnorm(tf.reduce_sum(op_l4[...,tf_new]*var_l5_weights, axis=[-2]       ),var_l5_bias,conv=False);                     print('layer5.shape: %s' % op_l5.shape)
+      with tf.name_scope('l4'): op_l4,upd4=bnorm(tf.reduce_sum(op_l3[...,tf_new]*var_l4_weights,[1,2,3]          ),var_l4_bias,conv=False); op_l4=_relu(op_l4); print('layer4.shape: %s' % op_l4.shape)
+      with tf.name_scope('l5'): op_l5,upd5=bnorm(tf.reduce_sum(op_l4[...,tf_new]*var_l5_weights,[1]              ),var_l5_bias,conv=False);                     print('layer5.shape: %s' % op_l5.shape)
+#       with tf.name_scope('l4'): op_l4,upd4=bnorm(tf.tensordot( op_l3,          var_l4_weights,[[1,2,3],[0,1,2]]),var_l4_bias,conv=False); op_l4=_relu(op_l4); print('layer4.shape: %s' % op_l4.shape)
+#       with tf.name_scope('l5'): op_l5,upd5=bnorm(tf.tensordot( op_l4,          var_l5_weights,[[1],[0]]        ),var_l5_bias,conv=False);                     print('layer5.shape: %s' % op_l5.shape)
   
       print()
   
@@ -178,6 +168,19 @@ class MNIST_Model:
     self.out_n_errors  = out_n_errors
     self.out_accuracy  = out_accuracy
   
+    var_list = [*trainable_vars(out_loss) ]
+
+    nVars = np.sum(
+      np.prod( np.array(var.shape, dtype=np.int64) )
+      for var in var_list
+    )
+    print()
+    print('#vars = %s' % nVars)
+    print()
+
+    for var in var_list:
+      tf.summary.histogram(var.name, var)
+
     tf.summary.histogram('xentropy', out_xentropy)
     tf.summary.scalar('loss', out_loss)
     tf.summary.scalar('n_errors', out_n_errors)

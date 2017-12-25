@@ -87,19 +87,22 @@ catch(err){
       function write(d) {
         if( d === ndim ) {
           strides.fill(1)
-          ndarray.forEach( (arr,i) => values[i] = arr.data[indices[i]++] )
-          data[flat_idx++] = mapper(...values, ...multi_idx)
+          for( let i=ndarray.length; i-- > 0; )
+            values[i] = ndarray[i].data[indices[i]++]
+          data[flat_idx++] = mapper.apply( undefined, values.concat(multi_idx) )
+          return
         }
-        else for( multi_idx[d] = 0;; )
+        for( multi_idx[d] = 0;; )
         {
           write(d+1)
           if( ++multi_idx[d] >= shape[d] )
-            return ndarray.forEach( (arr,i) => strides[i] *= (arr.shape[d-ndim+arr.ndim] || 1) )
-          ndarray.forEach( (arr,i) => {
-            if( ! (arr.shape[d-ndim+arr.ndim] > 1) ) // <- handles undefined (index out of bounds)
+            break
+          for( let i=ndarray.length; i-- > 0; )
+            if( ! (ndarray[i].shape[ d - ndim + ndarray[i].ndim ] > 1) ) // <- handles undefined (index out of bounds)
               indices[i] -= strides[i]
-          })
         }
+        for( let i=ndarray.length; i-- > 0; )
+          strides[i] *= ( ndarray[i].shape[ d - ndim + ndarray[i].ndim ] || 1 )
       }
       write(0)
 
@@ -170,27 +173,24 @@ catch(err){
               result = ' '+result
           return result
         }
-        else
-        {
-          indent += ' '
-          let
-            prefix = '[',
-            infix  = ', ',
-            suffix = ']'
-          if( d < shape.length-1 )
-            infix = ',\n'+indent
-          function* elems() {
-            if( shape[d] > max_len )
-            {
-              for( let j=0;             j < first;    j++ ) yield str(indent, d+1, idx+j*strides[d])
-              yield ' ...' + (shape[d]-max_len) + ' more...'
-              for( let j=shape[d]-last; j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
-            }
-            else for( let j=0;          j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
+        indent += ' '
+        let
+          prefix = '[',
+          infix  = ', ',
+          suffix = ']'
+        if( d < shape.length-1 )
+          infix = ',\n'+indent
+        function* elems() {
+          if( shape[d] > max_len )
+          {
+            for( let j=0;             j < first;    j++ ) yield str(indent, d+1, idx+j*strides[d])
+            yield `...${shape[d]-max_len} more...`
+            for( let j=shape[d]-last; j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
           }
-          elems = [...elems()]
-          return prefix + elems.join(infix) + suffix
+          else for( let j=0;          j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
         }
+        elems = [...elems()]
+        return prefix + elems.join(infix) + suffix
       }
       return str('',0,0)
     }
@@ -307,11 +307,18 @@ catch(err){
       const oldNDim = this.ndim
 
       if( 'number' === typeof axes ) axes = [axes]
+      if( axes instanceof nd.Array ) {
+        if( ! nd.is_subdtype(axes.dtype,'int32') ) throw new Error(`Invalid dtype ${axes.dtype} for axes.`) 
+        if( axes.ndim === 1 )
+          axes = axes.data
+        else
+          throw new Error('Only 1D nd.Array allowed for axes.')
+      }
       axes = new Set( function*() {
         for( let ax of axes ) {
           if( 0 > ax )  ax += oldNDim
           if( 0 > ax || ax >= oldNDim ) throw new Error('Reduction axis '+ax+' out of bounds.')
-          yield ax
+          yield +ax
         }
       }() )
 
@@ -647,10 +654,9 @@ catch(err){
     function fill(d)
     {
       if( d === axis )
-        ndarrays.forEach( (arr,i) => {
-          for( let j=arr.shape[d]*rest; j-- > 0; )
-            newData[newIdx++] = arr.data[indices[i]++]
-        })
+        for( let i=ndarrays.length; i-- > 0; )
+          for( let j=ndarrays[i].shape[d]*rest; j-- > 0; )
+            newData[newIdx++] = ndarrays[i].data[indices[i]++]
       else for( let i=newShape[d]; i-- > 0; )
         fill(d+1)
     }

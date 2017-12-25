@@ -166,28 +166,27 @@ class {MODEL_NAME} extends Function
           && padding !== 'SAME' ) throw new Error('Unknown padding. Supported formats: {{SAME, VALID}}.')
       if(    data_format !== 'NHWC'
           && data_format !== 'NCHW' ) throw new Error("Unkown data_format '"+data_format+"'. Supported formats: {{NHWC, NCHW}}.")
-      if( filter.ndim != 4 ) throw new Error('Filter must have ndim=4.')
       if( data_format !== 'NHWC' )
         throw new Error('Only NHWC supported as data_format so far.')
 
       const
-        oldShape = images.shape,
+        oldShape = Int32Array.from(images.shape),
         newShape = Int32Array.from(oldShape),
-        ndim = newShape.length,
-        [nFY,nFX,nCOld,nCNew] = filter.shape
+        filShape = Int32Array.from(filter.shape)
 
-      if(  4    != oldShape.length  ) throw new Error('The images to be convoluted must have ndim=4.')
-      if( nCOld != oldShape[ndim-1] ) throw new Error('Last dim of images must match filter.shape[2].')
+      if(         4  != filShape.length) throw new Error('filter must have ndim=4.')
+      if(         4  != oldShape.length) throw new Error('images must have ndim=4.')
+      if(filShape[2] != oldShape[3]    ) throw new Error('Last dim of images must match filter.shape[2].')
       
       if( padding === 'VALID' )
       {{
-        newShape[ndim-3] -= nFY-1
-        newShape[ndim-2] -= nFX-1
+        newShape[1] -= filShape[0]-1
+        newShape[2] -= filShape[1]-1
       }}
 
-      newShape[ndim-3] = 1 + Math.trunc( (newShape[ndim-3] - 1) / strides[1] )
-      newShape[ndim-2] = 1 + Math.trunc( (newShape[ndim-2] - 1) / strides[2] )
-      newShape[ndim-1] = nCNew
+      newShape[1] = 1 + Math.trunc( (newShape[1] - 1) / strides[1] )
+      newShape[2] = 1 + Math.trunc( (newShape[2] - 1) / strides[2] )
+      newShape[3] = filShape[3]
 
       let
         dYOff = 0,
@@ -195,12 +194,49 @@ class {MODEL_NAME} extends Function
 
       if( padding === 'SAME' )
       {{
-        dYOff = oldShape[ndim-3] - (newShape[ndim-3]-1)*strides[1] - nFY
-        dXOff = oldShape[ndim-2] - (newShape[ndim-2]-1)*strides[2] - nFX
+        dYOff = oldShape[1] - (newShape[1]-1)*strides[1] - filShape[0]
+        dXOff = oldShape[2] - (newShape[2]-1)*strides[2] - filShape[1]
         dYOff = Math.trunc( dYOff / 2 )
         dXOff = Math.trunc( dXOff / 2 )
       }}
+      const
+        // FLAT DATA
+        oldData  = images.data,
+        newData  = new Float32Array( newShape.reduce( (m,n) => m*n ) ),
+        filtData = filter.data,
+        // STRIDES
+        strY = 0 | strides[1],
+        strX = 0 | strides[2],
+        filtStrX  = filShape[2] * filShape[3]
+
+      for( let iBtc=oldShape[0]; iBtc-- > 0; ) // <- BATCH
+      for( let filY=filShape[0]; filY-- > 0; ) // <- FILTER VERTICAL
+      for( let newY=newShape[1]; newY-- > 0; ) // <- OUTPUT VERTICAL
+      {{
+        const oldY = newY * strY + dYOff + filY // <- INPUT VERTICAL
+        if( 0 <= oldY && oldY < oldShape[1] )
+        for( let filX=filShape[1]; filX-- > 0; ) // <- FILTER HORIZONTAL
+        for( let newX=newShape[2]; newX-- > 0; ) // <- OUTPUT HOROZONTAL
+        {{
+          const oldX = newX * strX + dXOff + filX // <- INPUT HORIZONTAL
+          if( 0 <= oldX && oldX < oldShape[2] )
+          {{
+            let // FLAT INDICES
+              iOld = ((iBtc*oldShape[1] + oldY)*oldShape[2] + oldX)*filShape[2], // <-  INPUT FLAT
+              iNew = ((iBtc*newShape[1] + newY)*newShape[2] + newX)*filShape[3], // <- OUTPUT FLAT
+              iFilt=  (filY*filShape[1] + filX)*filtStrX                         // <- FILTER FLAT
+
+            for( let cOld=filShape[2]; cOld-- > 0; iOld++, iNew -= filShape[3] )
+            for( let cNew=filShape[3]; cNew-- > 0; )
+              newData[iNew++] += filtData[iFilt++] * oldData[iOld]
+          }}
+        }}
+      }}
+
+      return new nd.Array(newShape, newData)
+    }}
 /*
+OLD, CLEAN, SUPERSLOW VERSION OF CONV2D
       return nd.tabulate(
         newShape, 'float32', // <- FIXME add choice float64/float32 ?
         (...indices) => {{
@@ -209,57 +245,15 @@ class {MODEL_NAME} extends Function
              x  = indices[ndim-2] * strides[2] + dXOff,
             cNew= indices[ndim-1];
           let result = 0.0;
-          for( let  fY =0;  fY  < nFY;      fY++ ) {{ const _y = y+fY; indices[ndim-3] = _y; if( 0 <= _y && _y < oldShape[1] )
-          for( let  fX =0;  fX  < nFX;      fX++ ) {{ const _x = x+fX; indices[ndim-2] = _x; if( 0 <= _x && _x < oldShape[2] )
-          for( let cOld=0; cOld < nCOld; cOld++ ) {{                   indices[ndim-1] = cOld;
+          for( let  fY =0;  fY  < filShape[0];      fY++ ) {{ const _y = y+fY; indices[ndim-3] = _y; if( 0 <= _y && _y < oldShape[1] )
+          for( let  fX =0;  fX  < filShape[1];      fX++ ) {{ const _x = x+fX; indices[ndim-2] = _x; if( 0 <= _x && _x < oldShape[2] )
+          for( let cOld=0; cOld < filShape[2]; cOld++ ) {{                   indices[ndim-1] = cOld;
             result += filter(fY,fX,cOld,cNew) * images(...indices);
           }}}}}}
           return result;
         }}
       )
 */
-      const
-        // FLAT DATA
-        oldData   = images.data,
-        newData   = new Float32Array( newShape.reduce( (m,n) => m*n ) ),
-        filtData  = filter.data,
-        nBatch= oldShape[0],
-        oldNY = oldShape[1], oldNX = oldShape[2],
-        newNY = newShape[1], newNX = newShape[2],
-        // STRIDES
-        strY = strides[1],
-        strX = strides[2],
-        oldStrX   = nCOld, oldStrY = oldNX * oldStrX, oldStrB = oldNY * oldStrY,
-        newStrX   = nCNew, newStrY = newNX * newStrX, newStrB = newNY * newStrY,
-        filtStrOld= nCNew,
-        filtStrX  = nCOld* filtStrOld,
-        filtStrY  = nFX  * filtStrX
-
-      for( let b=0;       b < nBatch; b++ )
-      for( let newY=0; newY < newNY; newY++ )
-      for( let newX=0; newX < newNX; newX++ )
-      {{
-        let oldY = newY * strY + dYOff
-        for( let fY=0; fY < nFY; fY++, oldY++ )
-        if( 0 <= oldY && oldY < oldNY )
-        {{
-          let oldX = newX * strX + dXOff
-          for( let fX=0; fX < nFX; fX++, oldX++ )
-          if( 0 <= oldX && oldX < oldNX )
-          {{
-            let
-              iOld = b*oldStrB + oldY*oldStrY + oldX*oldStrX,
-              iNew = b*newStrB + newY*newStrY + newX*newStrX,
-              iFilt= fY*filtStrY + fX*filtStrX
-  
-            for( let cOld=nCOld;  cOld-- > 0; iOld++, iNew -= nCNew )
-            for( let cNew=nCNew;  cNew-- > 0; )
-              newData[iNew++] += filtData[iFilt++] * oldData[iOld]
-          }}
-        }}
-      }}
-      return new nd.Array(newShape, newData)
-    }}
 
     /** Checks data type and shape of an nd.Array.
       *

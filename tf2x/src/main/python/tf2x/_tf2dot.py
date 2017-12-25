@@ -10,6 +10,8 @@ from graphviz import Digraph
 import numpy as np, tensorflow as tf
 from tf2x.inspect import ops
 import logging
+from tf2x.utils import array2str
+
 
 
 def _ops2dot( ops: Set[tf.Operation], *, sess: tf.Session=None ):
@@ -94,16 +96,16 @@ def _ops2dot( ops: Set[tf.Operation], *, sess: tf.Session=None ):
         TYPE = op.type,
         NAME = op.name,
       )
-      if None is not sess:
+      if None is not sess and op.type != 'VariableV2':
 #       if op.type == 'Const' and None is not sess:
-        threshold = np.get_printoptions()['threshold']
         try:
           np.set_printoptions(threshold=16)
-          label += '<br/>={}'.format( np.array2string( sess.run(op.outputs[0]), separator=', ' ).replace('\n','<br/>') )
+          lines = array2str( sess.run(op.outputs[0]) ).split('\n')
+          width = max( map(len,lines) )
+          lines = '<br/>&nbsp;'.join( line.ljust(width).replace(' ', '&nbsp;') for line in lines )
+          label += '<font face="monospace"><br/>={}</font>'.format(lines)
         except:
-          logging.warning('Could not read %s "%s".' % (op.type,op.name) )
-        finally:
-          np.set_printoptions(threshold=threshold)
+          logging.warn('Could not read %s "%s".' % (op.type,op.name) )
 
       yield '<td></td><td rowspan="{ROWSPAN}" cellpadding="8" colspan="{COLSPAN}">{LABEL}</td><td></td>'.format(
         LABEL = label,
@@ -185,3 +187,5 @@ def tf2dot( parent: Union[tf.Tensor,tf.Graph,tf.Operation], *, sess: tf.Session=
     An DOT graph representation of the computation (sub)graph.
   '''
   return _ops2dot( ops(parent), sess=sess )
+
+
