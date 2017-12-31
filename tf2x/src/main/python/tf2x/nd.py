@@ -14,14 +14,18 @@ def arrayB64( ndarray: np.ndarray ) -> str:
   Returns an nd.js nd.Array literal equivalent to the given numpy ndarray.
   The data is encoded in plain text.
   '''
-  perLine = 256
+  perLine = 256; assert perLine > 128
+  dtype = ndarray.dtype.name
+  shape = json.dumps(ndarray.shape)
   data = b64encode( ndarray.newbyteorder('<').tobytes() ).decode('UTF-8')
-  data = '\n'.join(
+
+  if len(data) < perLine-64:
+    return "nd.arrayFromB64('{}', {}, '{}')".format( dtype, shape, data )
+  data = '\n  '.join(
     data[i*perLine : perLine*(i+1)]
     for i in range( 1 + ( len(data) - 1 ) // perLine )
   )
-  dtype = ndarray.dtype.name
-  return "nd.arrayFromB64('{}', {}, `{}`)".format( dtype, json.dumps(ndarray.shape), data )
+  return "nd.arrayFromB64('{}', {}, `\n  {}\n`)".format( dtype, shape, data )
   raise Exception('Not yet implemented.')
 
 def array( ndarray: np.ndarray ) -> str:

@@ -477,7 +477,7 @@ catch(err){
   {
     const
       ch_b64= 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',
-      ch_ws = '\f\n\r\t\v',
+      ch_ws = '\f\n\r\t\v ',
       LUT = new Int32Array(256)
     LUT.fill(-2)
 

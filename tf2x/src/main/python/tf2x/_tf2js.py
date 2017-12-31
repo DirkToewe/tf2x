@@ -174,9 +174,9 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
   result = _tf2js_template.format(
     MODEL_NAME = model_name,
     RESULT = result,
-    CONSTS = ',\n      '.join( "'{}': {}".format(name,nd.arrayB64(vals)) for name,(typ,_,vals) in consts.items() ),
-    VARS   = ',\n      '.join( "'{}': {}".format(name,nd.arrayB64(vals)) for name,(typ,_,vals) in   vars.items() ),
-    OPS    = ',\n      '.join( "{:18s}: inputs => {}"    .format("'%s'" % name,expr)      for name,expr in ops.items() ),
+    CONSTS = ',\n      '.join( "{:32s}: {}"          .format("'%s'" % name,nd.arrayB64(vals).replace('\n', '\n      ')) for name,(_,_,vals) in consts.items() ),
+    VARS   = ',\n      '.join( "{:32s}: {}"          .format("'%s'" % name,nd.arrayB64(vals).replace('\n', '\n      ')) for name,(_,_,vals) in   vars.items() ),
+    OPS    = ',\n      '.join( "{:32s}: inputs => {}".format("'%s'" % name,expr)                                        for name,expr       in    ops.items() ),
     CHECKS =  '\n      '.join(
       '_checkNDArray({0}, "{0}", \'{1}\', {2});'.format( "%s['%s']" % (kind,name), type, shapeStr(shape) )
       for kind,items in [

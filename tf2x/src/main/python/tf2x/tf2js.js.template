@@ -178,12 +178,10 @@ class {MODEL_NAME} extends Function
       if(         4  != oldShape.length) throw new Error('images must have ndim=4.')
       if(filShape[2] != oldShape[3]    ) throw new Error('Last dim of images must match filter.shape[2].')
       
-      if( padding === 'VALID' )
-      {{
+      if( padding === 'VALID' ) {{
         newShape[1] -= filShape[0]-1
         newShape[2] -= filShape[1]-1
       }}
-
       newShape[1] = 1 + Math.trunc( (newShape[1] - 1) / strides[1] )
       newShape[2] = 1 + Math.trunc( (newShape[2] - 1) / strides[2] )
       newShape[3] = filShape[3]
@@ -207,53 +205,35 @@ class {MODEL_NAME} extends Function
         // STRIDES
         strY = 0 | strides[1],
         strX = 0 | strides[2],
-        filtStrX  = filShape[2] * filShape[3]
+        filStrX = filShape[2] * filShape[3]
 
-      for( let iBtc=oldShape[0]; iBtc-- > 0; ) // <- BATCH
-      for( let filY=filShape[0]; filY-- > 0; ) // <- FILTER VERTICAL
+      for( let btcI=newShape[0]; btcI-- > 0; ) // <- BATCH
       for( let newY=newShape[1]; newY-- > 0; ) // <- OUTPUT VERTICAL
+      for( let filY=filShape[0]; filY-- > 0; ) // <- FILTER VERTICAL
       {{
         const oldY = newY * strY + dYOff + filY // <- INPUT VERTICAL
         if( 0 <= oldY && oldY < oldShape[1] )
-        for( let filX=filShape[1]; filX-- > 0; ) // <- FILTER HORIZONTAL
         for( let newX=newShape[2]; newX-- > 0; ) // <- OUTPUT HOROZONTAL
+        for( let filX=filShape[1]; filX-- > 0; ) // <- FILTER HORIZONTAL
         {{
           const oldX = newX * strX + dXOff + filX // <- INPUT HORIZONTAL
           if( 0 <= oldX && oldX < oldShape[2] )
           {{
             let // FLAT INDICES
-              iOld = ((iBtc*oldShape[1] + oldY)*oldShape[2] + oldX)*filShape[2], // <-  INPUT FLAT
-              iNew = ((iBtc*newShape[1] + newY)*newShape[2] + newX)*filShape[3], // <- OUTPUT FLAT
-              iFilt=  (filY*filShape[1] + filX)*filtStrX                         // <- FILTER FLAT
-
-            for( let cOld=filShape[2]; cOld-- > 0; iOld++, iNew -= filShape[3] )
-            for( let cNew=filShape[3]; cNew-- > 0; )
-              newData[iNew++] += filtData[iFilt++] * oldData[iOld]
+              iOld = ((btcI*oldShape[1] + oldY)*oldShape[2] + oldX)*oldShape[3], // <-  INPUT FLAT
+              iNew = ((btcI*newShape[1] + newY)*newShape[2] + newX)*newShape[3], // <- OUTPUT FLAT
+              iFil =  (filY*filShape[1] + filX)*filStrX                         // <- FILTER FLAT
+            const
+              iOldEnd = iOld + oldShape[3],
+              iNewEnd = iNew + newShape[3]
+            for( ; iOld < iOldEnd; iOld++, iNew -= newShape[3] )
+            for( ; iNew < iNewEnd; iNew++, iFil++ )
+              newData[iNew] += filtData[iFil] * oldData[iOld]
           }}
         }}
       }}
-
       return new nd.Array(newShape, newData)
     }}
-/*
-OLD, CLEAN, SUPERSLOW VERSION OF CONV2D
-      return nd.tabulate(
-        newShape, 'float32', // <- FIXME add choice float64/float32 ?
-        (...indices) => {{
-          const
-             y  = indices[ndim-3] * strides[1] + dYOff,
-             x  = indices[ndim-2] * strides[2] + dXOff,
-            cNew= indices[ndim-1];
-          let result = 0.0;
-          for( let  fY =0;  fY  < filShape[0];      fY++ ) {{ const _y = y+fY; indices[ndim-3] = _y; if( 0 <= _y && _y < oldShape[1] )
-          for( let  fX =0;  fX  < filShape[1];      fX++ ) {{ const _x = x+fX; indices[ndim-2] = _x; if( 0 <= _x && _x < oldShape[2] )
-          for( let cOld=0; cOld < filShape[2]; cOld++ ) {{                   indices[ndim-1] = cOld;
-            result += filter(fY,fX,cOld,cNew) * images(...indices);
-          }}}}}}
-          return result;
-        }}
-      )
-*/
 
     /** Checks data type and shape of an nd.Array.
       *
@@ -325,21 +305,6 @@ OLD, CLEAN, SUPERSLOW VERSION OF CONV2D
 
     model.cache = {{}}
 
-    /** The constants that were defined in the Tensorflow graph. Since the Tensorflow
-      * graph might be optimized and restructures under the constant assumption, it
-      * is not recommended to change constants in the JavaScript representation.
-      */
-    model.consts= {{
-      {CONSTS}
-    }}
-
-    /** The variables that were defined in the Tensorflow graph. Just as in Tensorflow
-      * these variables should be safe to change/reassign.
-      */
-    model.vars = {{
-      {VARS}
-    }}
-
     /** The variables that were defined in the Tensorflow graph. Each operation is a
       * function that takes an object as input, which fills in the placeholders that
       * were defined in Tensorflow. As of yet, vars, consts and inputs are NOT checked
@@ -365,8 +330,22 @@ OLD, CLEAN, SUPERSLOW VERSION OF CONV2D
           return uses_result[1]
         }}
 
-    Object.setPrototypeOf(model,{MODEL_NAME}.prototype)
+    /** The constants that were defined in the Tensorflow graph. Since the Tensorflow
+      * graph might be optimized and restructures under the constant assumption, it
+      * is not recommended to change constants in the JavaScript representation.
+      */
+    model.consts= {{
+      {CONSTS}
+    }}
 
+    /** The variables that were defined in the Tensorflow graph. Just as in Tensorflow
+      * these variables should be safe to change/reassign.
+      */
+    model.vars = {{
+      {VARS}
+    }}
+
+    Object.setPrototypeOf(model,{MODEL_NAME}.prototype)
     return model
   }}
 }}
