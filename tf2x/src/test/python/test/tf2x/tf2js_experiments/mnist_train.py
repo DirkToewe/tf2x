@@ -88,7 +88,8 @@ def main():
   ##
   ## CREATE SAVER
   ##
-  saver = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
+  saver_best= tf.train.Saver() # <- use a separate saver for the best result so that it doesn't get discarded as "old result"
+  saver     = tf.train.Saver( keep_checkpoint_every_n_hours=1 )
 
   TensorboardProcess(logdir = summary_dir).start()
   webbrowser.open('http://localhost:6006')
@@ -115,7 +116,7 @@ def main():
     print()
     if os.path.isfile( best_path+'.meta' ):
       print('Loading best checkpoint...', end='')
-      saver.restore(sess, best_path)
+      saver_best.restore(sess, best_path)
       best_accuracy = sess.run(model.out_accuracy, feed_dict=test_feed)
       print( ' done! Accuracy: %.2f%%' % (best_accuracy*100) )
     else:
@@ -156,11 +157,10 @@ def main():
 
       if accuracy > summarize.best_accuracy:
         print('  saving new best model (%.2f%%)...' % (accuracy*100), end='')
-        saver.save(sess, best_path)
+        saver_best.save(sess, best_path)
         summarize.best_accuracy = accuracy
         print(' done!')
     summarize.best_accuracy = best_accuracy
-        
 
     order = np.arange( len(in_images_train) )
 

@@ -75,7 +75,7 @@ def main():
 
   in_images_validation= mnist.validation.images.reshape(-1,h,w,1)
   in_images_test      = mnist.test      .images.reshape(-1,h,w,1) # <- used to estimate the model error during training
-  in_images_test = in_images_test[:1000]
+  in_images_test  = in_images_test[:1000]
 
   in_labels_validation= mnist.validation.labels
 
@@ -86,8 +86,8 @@ def main():
   tmp_dir = mkdtemp()
 
   with tf.Session() as sess:
-
-    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
+#     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
+    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-7600')
     saver.restore(sess, model_path)
 
     accuracy = sess.run( model.out_accuracy, feed_dict={
@@ -131,6 +131,7 @@ def main():
   proc = subprocess.Popen([
     'node',
 #     '--prof',
+    '--max-inlined-source-size=1024',
     '--max_old_space_size=12288',
     'raw.js'
   ], stderr=subprocess.STDOUT, cwd=tmp_dir)

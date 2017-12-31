@@ -187,7 +187,7 @@ class MNIST_Model:
     tf.summary.scalar('accuracy', out_accuracy)
 
     with tf.name_scope(train_scope):
-      train_rate = tf.train.exponential_decay(1e-2, train_step, 100, 0.95)
+      train_rate = tf.train.exponential_decay(1e-2, train_step, 100, 0.9)
       train = tf.train.AdamOptimizer(train_rate).minimize( out_loss, train_step, var_list=var_list )
       with tf.control_dependencies([train]):
         train = tf.group(upd1,upd2,upd3,upd4,upd5)

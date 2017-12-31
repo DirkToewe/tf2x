@@ -1,7 +1,7 @@
 '''
 Created on Dec 23, 2017
 
-@author: dtitx
+@author: Dirk Toewe
 '''
 
 class StrWithNum:
@@ -50,7 +50,7 @@ class StrWithNum:
         j += 1
       if 0 != cmp: return cmp
 
-    # compare number of trailing chacters to resolve conflicts
+    # compare number of trailing characters to resolve conflicts
     cmp = (len(a)-i) - (len(b)-j)
     if 0 != cmp: return cmp
 
