@@ -34,7 +34,7 @@
               .reshape(1,28,28,1)
 //console.log( images.reshape(1,28,28).toString() )
             const prediction = model({{ 'in/images:0': images }})
-            postMessage(prediction.data);
+            self.postMessage(prediction.data);
 //console.timeEnd('CLASSIFY_IMG')
           }};
         `],
@@ -82,9 +82,13 @@
           status.innerHTML = ''
           classifierRunning = false
         }}
+        const max = Math.max(...msg.data)
         msg.data.forEach( (progress,i) => {{
           progressBars[i][0].value = progress
-          progressBars[i][1].innerHTML = `${{(progress*100).toFixed(1)}}%`
+          let str = `${{(progress*100).toFixed(1)}}%`
+          if( max == progress )
+            str = `<b>${{str}}</b>`
+          progressBars[i][1].innerHTML = str
         }})
       }}
 

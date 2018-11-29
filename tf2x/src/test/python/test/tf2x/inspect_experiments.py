@@ -17,5 +17,3 @@ if __name__ == '__main__':
   z = tf.Variable(3, name='Z', trainable=True)
   vars = trainable_vars(3*x + 4*(y+2*z) )
   print('\n'.join( map(str,vars) ) )
-
-

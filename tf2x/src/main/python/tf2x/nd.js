@@ -89,7 +89,7 @@ catch(err){
           strides.fill(1)
           for( let i=ndarray.length; i-- > 0; )
             values[i] = ndarray[i].data[indices[i]++]
-          data[flat_idx++] = mapper.apply( undefined, values.concat(multi_idx) )
+          data[flat_idx++] = mapper( ...values, ...multi_idx )
           return
         }
         for( multi_idx[d] = 0;; )
@@ -143,7 +143,7 @@ catch(err){
       {
         let idx = indices[i]
         if( idx < 0 )  idx += shape[i]
-        if( idx < 0 || idx >= shape[i] ) throw new Error('Multi-index out of bounds.')
+        if( idx < 0 || idx >= shape[i] ) throw new Error(`Index [${indices}] out of bounds [${shape}].`)//throw new Error('Multi-index out of bounds.')
         flat_idx  +=   idx * stride
       }
       return flat_idx;
@@ -184,7 +184,7 @@ catch(err){
           if( shape[d] > max_len )
           {
             for( let j=0;             j < first;    j++ ) yield str(indent, d+1, idx+j*strides[d])
-            yield `...${shape[d]-max_len} more...`
+                                                          yield `...${shape[d]-max_len} more...`
             for( let j=shape[d]-last; j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
           }
           else for( let j=0;          j < shape[d]; j++ ) yield str(indent, d+1, idx+j*strides[d])
@@ -290,6 +290,11 @@ catch(err){
 
       return new NDArray(shape, this.data)
     }
+
+//    transpose( ...axes )
+//    {
+//      const ax = Array.from(
+//    }
 
     reduce( axes, dtype, reducer )
     {

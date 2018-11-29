@@ -79,5 +79,3 @@ assert StrWithNum('a1b001') < StrWithNum('a1b2')
 assert StrWithNum('a2b1') == StrWithNum('a2b1')
 assert StrWithNum('a2b1x') > StrWithNum('a2b1')
 assert StrWithNum('b2b1') > StrWithNum('a2b1')
-
-

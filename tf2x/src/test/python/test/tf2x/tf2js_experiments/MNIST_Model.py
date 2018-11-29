@@ -149,7 +149,7 @@ class MNIST_Model:
   
     with tf.name_scope('out'):
       out_prediction= tf.nn.softmax(op_l5, name='prediction')
-      out_xentropy  = tf.nn.softmax_cross_entropy_with_logits( logits=op_l5, labels=in_labels, name='xentropy' )
+      out_xentropy  = tf.nn.softmax_cross_entropy_with_logits_v2( logits=op_l5, labels=in_labels, name='xentropy' )
       out_loss      = tf.reduce_mean(out_xentropy, name='loss')
       out_n_errors  = tf.reduce_sum(
         tf.cast(
@@ -195,5 +195,3 @@ class MNIST_Model:
     self.train = train
 
     tf.summary.scalar('train_rate', train_rate)
-
-

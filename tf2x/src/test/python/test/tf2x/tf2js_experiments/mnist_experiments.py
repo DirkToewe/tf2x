@@ -67,6 +67,7 @@ for( let i=1; i-- > 0; )
 }}
 '''
 
+
 def main():
 
   w,h = 28,28
@@ -86,8 +87,8 @@ def main():
   tmp_dir = mkdtemp()
 
   with tf.Session() as sess:
-#     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
-    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-7600')
+    model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
+#     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-7600')
     saver.restore(sess, model_path)
 
     accuracy = sess.run( model.out_accuracy, feed_dict={
@@ -139,7 +140,6 @@ def main():
   print( np.array2string( result, separator=', ', max_line_width=256 ) )
   print()
   print(dt)
-
 
 
 if '__main__' == __name__:

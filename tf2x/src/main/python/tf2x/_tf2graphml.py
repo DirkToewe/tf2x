@@ -170,4 +170,3 @@ def tf2graphml( parent: Union[tf.Tensor,tf.Graph,tf.Operation] ):
     An XML/GraphML representation of the computation (sub)graph.
   '''
   return _ops2graphml( ops(parent) )
-

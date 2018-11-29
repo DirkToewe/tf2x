@@ -187,5 +187,3 @@ def tf2dot( parent: Union[tf.Tensor,tf.Graph,tf.Operation], *, sess: tf.Session=
     An DOT graph representation of the computation (sub)graph.
   '''
   return _ops2dot( ops(parent), sess=sess )
-
-

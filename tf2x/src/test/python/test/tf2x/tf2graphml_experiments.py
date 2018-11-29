@@ -47,7 +47,11 @@ def main():
 
   init_vars = tf.global_variables_initializer()
 
-  with tf.Session() as sess:
+  cfg = tf.ConfigProto(
+    device_count = {'GPU': 0}
+  )
+
+  with tf.Session( config=cfg ) as sess:
 
     sess.run(init_vars)
 

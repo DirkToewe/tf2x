@@ -52,6 +52,3 @@ def array( ndarray: np.ndarray ) -> str:
   dtype = ndarray.dtype.name
 
   return "nd.array('{}', {})".format( dtype, arrayStr(ndarray) )
-
-
-

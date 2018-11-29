@@ -93,5 +93,3 @@ def ops( group: Union[tf.Tensor,tf.Graph,tf.Operation] ) -> Set[tf.Operation]:
 
   fetch_ops(op)
   return ops
-
-

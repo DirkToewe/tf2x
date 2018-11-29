@@ -36,6 +36,7 @@ def main():
 
   with tf.Session() as sess:
     sess.run(init_vars)
+#     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt-1300')
     model_path = os.path.join(PROJECT_DIR, 'summary/model.ckpt_BEST')
     saver.restore(sess, model_path)
     model_js = tensor2js(model.out_prediction, sess=sess)

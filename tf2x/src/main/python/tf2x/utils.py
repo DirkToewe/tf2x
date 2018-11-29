@@ -20,10 +20,11 @@ def array2str( array: np.ndarray, val2str=None ) -> str:
     
   val2str: dtype => str
     The function used to convert the entry values to string.
-  ''' 
+  '''
   array = np.asarray(array)
   idx = np.zeros(array.ndim, dtype=np.int)
 
+  # ndim of squeezed shape (dim of size 1 removed)
   nSqueeze = array.ndim
   while nSqueeze > 0 and array.shape[nSqueeze-1] == 1:
     nSqueeze -= 1
@@ -52,7 +53,7 @@ def array2str( array: np.ndarray, val2str=None ) -> str:
 
     lSize=0
     rSize=0
- 
+
     # find largest common size
     for s in printedEntries(0):
       spl = s.split('.')
@@ -60,7 +61,7 @@ def array2str( array: np.ndarray, val2str=None ) -> str:
       if len(spl) == 2:
         rSize = max(rSize, len(spl[1]) )
       lSize = max(lSize, len(spl[0]) )
- 
+
     def val2str( val ):
       s = _val2str(val)
       spl = s.split('.')
@@ -74,7 +75,7 @@ def array2str( array: np.ndarray, val2str=None ) -> str:
   if array.ndim == 0:
     return val2str( float(array) )
 
- 
+
   def array2str( dim, indent ) -> str:
     assert dim <= array.ndim
     if dim == array.ndim:

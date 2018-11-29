@@ -94,8 +94,10 @@ def main():
   TensorboardProcess(logdir = summary_dir).start()
   webbrowser.open('http://localhost:6006')
 
-  cfg = tf.ConfigProto()
-  cfg.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+  cfg = tf.ConfigProto(
+     device_count = {'GPU': 0}
+  )
+#   cfg.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
 
   ##
   ## TRAIN MODEL
@@ -182,12 +184,12 @@ def main():
 
         train(images,labels)
 
-        if 0 < step and step % 10 == 0:
+        if 0 < step and step % 100 == 0:
           print('--------------')
           summarize(step)
           print()
 
-        if 0 < step and step % 100 == 0:
+        if 0 < step and step % 25 == 0:
           print('  saving graph...', end='')
           saver.save(sess, save_path, global_step=step)
           print(' done!')
@@ -209,5 +211,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
-

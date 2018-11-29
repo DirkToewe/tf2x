@@ -48,14 +48,18 @@ def main():
 #   MAP_FN = tf.map_fn( lambda i: tf.multiply(i,i, name='I_TIMES_I'), INPUT, name='MAP_FN' )
 #   OUTPUT = tf.identity(MAP_FN, name='OUTPUT')
 
-  with tf.Session() as sess:
+  cfg = tf.ConfigProto(
+    device_count = {'GPU': 0}
+  )
+
+  with tf.Session( config=cfg ) as sess:
 
 #     sess.run( tf.global_variables_initializer() )
 #     print( sess.run(y, feed_dict = {'INPUT:0': 0}) )
 
 #    print( sess.run(OUTPUT) )
 
-    dot = tf2dot(OUTPUT, sess=sess)
+    dot = tf2dot( OUTPUT, sess=sess)
     dot.format = 'pdf'
     dot.attr( root='INPUT' )
 #     dot.attr( splines='true')

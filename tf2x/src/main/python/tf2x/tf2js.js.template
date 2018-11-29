@@ -157,9 +157,9 @@ class {MODEL_NAME} extends Function
       *   }}
       */
     // see: https://www.tensorflow.org/api_docs/python/tf/nn/conv2d
-    function _conv2d( images, filter, strides, padding, data_format )
+    function _conv2d( images, filter, strides, padding, data_format, dilations )
     {{
-      if( strides.length != 4 ) throw new Error('Assertion failed.')
+      if( strides.length != 4 ) throw new Error('strides.length must be 4')
       if( strides[0] != 1 ) throw new Error('strides[0] != 1 not supported.')
       if( strides[3] != 1 ) throw new Error('strides[3] != 1 not supported.')
       if(    padding !== 'VALID'
@@ -168,6 +168,9 @@ class {MODEL_NAME} extends Function
           && data_format !== 'NCHW' ) throw new Error("Unkown data_format '"+data_format+"'. Supported formats: {{NHWC, NCHW}}.")
       if( data_format !== 'NHWC' )
         throw new Error('Only NHWC supported as data_format so far.')
+      if( dilations[0] != 1 ) throw new Error('Batch dilation must be 1.');
+      if( dilations[3] != 1 ) throw new Error('Depth dilation must be 1.');
+      if( dilations.some( d => d < 1 ) ) throw new Error(`Invalid dilations: [${{dilations}}]`);
 
       const
         oldShape = Int32Array.from(images.shape),
@@ -179,24 +182,46 @@ class {MODEL_NAME} extends Function
       if(filShape[2] != oldShape[3]    ) throw new Error('Last dim of images must match filter.shape[2].')
       
       if( padding === 'VALID' ) {{
-        newShape[1] -= filShape[0]-1
-        newShape[2] -= filShape[1]-1
+        newShape[1] -= (filShape[0]-1)*dilations[1]
+        newShape[2] -= (filShape[1]-1)*dilations[2]
       }}
       newShape[1] = 1 + Math.trunc( (newShape[1] - 1) / strides[1] )
       newShape[2] = 1 + Math.trunc( (newShape[2] - 1) / strides[2] )
       newShape[3] = filShape[3]
 
-      let
-        dYOff = 0,
-        dXOff = 0
+      let dYOff = 0,
+          dXOff = 0
 
       if( padding === 'SAME' )
       {{
-        dYOff = oldShape[1] - (newShape[1]-1)*strides[1] - filShape[0]
-        dXOff = oldShape[2] - (newShape[2]-1)*strides[2] - filShape[1]
-        dYOff = Math.trunc( dYOff / 2 )
-        dXOff = Math.trunc( dXOff / 2 )
+        dYOff = (newShape[1]-1)*strides[1] + (filShape[0]-1)*dilations[1] - oldShape[1]
+        dXOff = (newShape[2]-1)*strides[2] + (filShape[1]-1)*dilations[2] - oldShape[2]
+        dYOff = Math.max(0,dYOff) + 1 >>> 1
+        dXOff = Math.max(0,dXOff) + 1 >>> 1
+        dYOff *= -1
+        dXOff *= -1
       }}
+
+      // SLOW BUT READABLE IMPLEMENTATION
+//      return nd.tabulate( newShape, 'float32', (b,y,x,g) => {{
+//        let result = 0
+//
+//        for( let dy=0; dy < filShape[0]; dy++ )
+//        for( let dx=0; dx < filShape[1]; dx++ )
+//        for( let  f=0;  f < filShape[2];  f++ )
+//        {{
+//          const
+//            yOld = y*strides[1] + dy*dilations[1] + dYOff,
+//            xOld = x*strides[2] + dx*dilations[2] + dXOff
+//          if(    0 <= yOld && yOld < oldShape[1]
+//              && 0 <= xOld && xOld < oldShape[2] )
+//            result += filter(dy,dx,f,g) * images(b,yOld,xOld,f)
+//        }}
+//
+//        return result
+//      }})
+
+      // OPTIMIZED IMPLEMENTATION THAT WORKS ON THE FLATTENED ARRAYS, WHICH IS HOWEVER MORE CONVOLUTED (pun intended)
       const
         // FLAT DATA
         oldData  = images.data,
@@ -211,18 +236,18 @@ class {MODEL_NAME} extends Function
       for( let newY=newShape[1]; newY-- > 0; ) // <- OUTPUT VERTICAL
       for( let filY=filShape[0]; filY-- > 0; ) // <- FILTER VERTICAL
       {{
-        const oldY = newY * strY + dYOff + filY // <- INPUT VERTICAL
+        const oldY = newY * strY + dYOff + filY*dilations[1] // <- INPUT VERTICAL
         if( 0 <= oldY && oldY < oldShape[1] )
         for( let newX=newShape[2]; newX-- > 0; ) // <- OUTPUT HOROZONTAL
         for( let filX=filShape[1]; filX-- > 0; ) // <- FILTER HORIZONTAL
         {{
-          const oldX = newX * strX + dXOff + filX // <- INPUT HORIZONTAL
+          const oldX = newX * strX + dXOff + filX*dilations[2] // <- INPUT HORIZONTAL
           if( 0 <= oldX && oldX < oldShape[2] )
           {{
             let // FLAT INDICES
               iOld = ((btcI*oldShape[1] + oldY)*oldShape[2] + oldX)*oldShape[3], // <-  INPUT FLAT
               iNew = ((btcI*newShape[1] + newY)*newShape[2] + newX)*newShape[3], // <- OUTPUT FLAT
-              iFil =  (filY*filShape[1] + filX)*filStrX                         // <- FILTER FLAT
+              iFil =  (filY*filShape[1] + filX)*filStrX                          // <- FILTER FLAT
             const
               iOldEnd = iOld + oldShape[3],
               iNewEnd = iNew + newShape[3]

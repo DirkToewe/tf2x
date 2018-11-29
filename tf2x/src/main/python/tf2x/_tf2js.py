@@ -118,7 +118,8 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
       strides    = op.get_attr('strides')
       padding    = op.get_attr('padding'    ).decode('ascii') # <- TODO: utf-8?
       data_format= op.get_attr('data_format').decode('ascii')
-      return "_conv2d(%s, %s, %s, '%s', '%s')" % (images,filter,strides,padding,data_format)
+      dilations  = op.get_attr('dilations'  )
+      return "_conv2d(%s, %s, %s, '%s', '%s', %s)" % (images,filter,strides,padding,data_format,dilations)
   mkOp = mkOp.__dict__
 
 
@@ -190,4 +191,3 @@ def tensor2js( tensor: tf.Tensor, *, sess: tf.Session=_no_session, model_name: s
   )
  
   return result
-

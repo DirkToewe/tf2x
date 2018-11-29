@@ -189,5 +189,3 @@ class ImageDistorter(object):
     image = self.warp_h(image)
 
     return image
-
-

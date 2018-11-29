@@ -127,7 +127,7 @@
     const
       a = new nd.Array([2,2], [1,2,3,4]),
       b = new nd.Array([2,2], [5,6,7,8])
-      c = nd.Array.from([a,b], (a_ij,b_ij,i,j) => {
+      c = nd.Array.from([a,b], (a_ij,b_ij, i,j) => {
         assert.strict_eq(a(i,j), a_ij)
         assert.strict_eq(b(i,j), b_ij)
         return 10*a_ij + b_ij
