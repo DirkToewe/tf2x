@@ -266,7 +266,7 @@ dot.render(directory=tmpdir, view=True)
 
 **Result:**
 
-![readme_explore5.png](https://dirktoewe.github.io/tf2x/readme_explore5.png)
+<img src="https://dirktoewe.github.io/tf2x/readme_explore5.png" height="1024"><readme_explore5.png</img>
 
 A loop statement is separated from the surrounding operations by `Enter` and `Exit` operations.
 `Next` operations separate the individual loop iterations from one another. Note how - once again -
