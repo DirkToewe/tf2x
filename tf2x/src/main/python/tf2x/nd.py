@@ -11,10 +11,13 @@ from base64 import b64encode
 
 def arrayB64( ndarray: np.ndarray ) -> str:
   '''
-  Returns an nd.js nd.Array literal equivalent to the given numpy ndarray.
-  The data is encoded in plain text.
+  Returns a JavaScript nd.js nd.Array literal equivalent to the given
+  numpy ndarray. The data is encoded in plain text.
   '''
   perLine = 256; assert perLine > 128
+
+  ndarray = np.asarray(ndarray)
+
   dtype = ndarray.dtype.name
   shape = json.dumps(ndarray.shape)
   data = b64encode( ndarray.newbyteorder('<').tobytes() ).decode('UTF-8')

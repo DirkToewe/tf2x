@@ -3,13 +3,9 @@ Created on Dec 18, 2017
 
 @author: Dirk Toewe
 '''
-
-import tensorflow as tf
-from tf2x.inspect import trainable_vars
-
-import numpy as np
+import numpy as np, tensorflow as tf
 from numbers import Number
-
+from tf2x.inspect import trainable_vars
 
 if __name__ == '__main__':
   x = tf.Variable(1, name='X', trainable=True)

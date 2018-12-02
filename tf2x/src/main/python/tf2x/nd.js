@@ -494,7 +494,7 @@ catch(err){
     nd.arrayFromB64 = (dtype, shape, content) =>
     {
       shape = Int32Array.from(shape)
-  
+
       const
         result = new nd.dtypes[dtype]( shape.reduce( (m,n) => m*n, 1 ) ),
         buf = new Uint8Array(result.buffer)

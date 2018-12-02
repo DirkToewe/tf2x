@@ -96,7 +96,7 @@ def _ops2dot( ops: Set[tf.Operation], *, sess: tf.Session=None ):
         TYPE = op.type,
         NAME = op.name,
       )
-      if None is not sess and op.type != 'VariableV2':
+      if None is not sess and ( op.type.startswith('Variable') or op.type in {'Placeholder','Const'} ):
 #       if op.type == 'Const' and None is not sess:
         try:
           np.set_printoptions(threshold=16)

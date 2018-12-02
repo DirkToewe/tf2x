@@ -13,7 +13,7 @@ import webbrowser
 
 from pkg_resources import resource_string
 
-import numpy as np, tf2x
+import tf2x
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
 from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
 from tf2x import tensor2js

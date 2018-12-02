@@ -16,7 +16,7 @@ from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 import numpy as np, tf2x
 from test.tf2x.tf2js_experiments.MNIST_Model import MNIST_Model
 from test.tf2x.tf2js_experiments.mnist_train import PROJECT_DIR
-from tf2x import tensor2js, tf2dot
+from tf2x import tensor2js
 from datetime import datetime
 from tf2x import nd
 
@@ -62,7 +62,7 @@ for( let i=1; i-- > 0; )
 {{
   let output = model({{ 'in/images:0': input }})
   output = output.map( x => x.toExponential(8) )
-  console.log('')
+  console.log('\\nOutput JS:')
   console.log( output.toString() )
 }}
 '''
@@ -132,11 +132,12 @@ def main():
   proc = subprocess.Popen([
     'node',
 #     '--prof',
-    '--max-inlined-source-size=1024',
     '--max_old_space_size=12288',
     'raw.js'
   ], stderr=subprocess.STDOUT, cwd=tmp_dir)
   proc.wait()
+
+  print('\nOutput TF:')
   print( np.array2string( result, separator=', ', max_line_width=256 ) )
   print()
   print(dt)
